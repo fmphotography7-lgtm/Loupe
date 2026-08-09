@@ -67,6 +67,7 @@ header .spacer{flex:1}
 
 /* ---------- main split ---------- */
 main{flex:1;display:flex;min-height:0}
+#stagewrap{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;position:relative}
 #stage{
   flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;
   background:
@@ -127,6 +128,16 @@ main{flex:1;display:flex;min-height:0}
 }
 #busy.on{display:block}
 
+#unzoom{
+  position:absolute;z-index:7;right:12px;bottom:12px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.04em;
+  background:rgba(14,15,17,.92);border:1px solid var(--line);color:var(--text);
+  padding:8px 12px;border-radius:2px;backdrop-filter:blur(6px);
+}
+#unzoom[hidden]{display:none}
+#unzoom:hover{border-color:var(--peak)}
+@media (max-width:860px){ #unzoom{right:9px;bottom:9px;padding:9px 13px;font-size:13px} }
+
 /* what the colours on the picture actually mean */
 #legend{
   position:relative;background:var(--panel2);border-bottom:1px solid var(--line);
@@ -157,6 +168,16 @@ main{flex:1;display:flex;min-height:0}
 #chips{
   position:absolute;z-index:4;top:10px;left:10px;right:10px;
   display:flex;gap:6px;flex-wrap:wrap;
+}
+@media (max-width:860px){
+  /* on a phone the picture is only half the screen — nothing may sit on top of it */
+  #chips{
+    position:static;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;
+    padding:7px 10px;gap:5px;background:var(--panel);border-bottom:1px solid var(--line);
+    -webkit-overflow-scrolling:touch;flex:0 0 auto;
+  }
+  #chips::-webkit-scrollbar{display:none}
+  .chip{backdrop-filter:none;background:var(--panel2)}
 }
 .chip{
   font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;font-size:12px;
@@ -323,6 +344,7 @@ canvas.strip{height:38px}
 .card.show{display:block}
 @media (max-width:860px){
   main{flex-direction:column}
+  #stagewrap{flex:0 0 auto}
   #stage{flex:0 0 auto;height:min(46vh,46dvh)}
   #app.noshot #stage{flex:1 1 auto;height:auto;min-height:0}
   #read{width:auto;flex:1;border-left:none;border-top:1px solid var(--line);min-height:0}
@@ -353,13 +375,8 @@ canvas.strip{height:38px}
 </header>
 
 <main>
-  <div id="stage">
-    <div id="frame" hidden>
-      <canvas id="base"></canvas>
-      <canvas id="over"></canvas>
-    </div>
-
-    <div id="chips" hidden>
+  <div id="stagewrap">
+  <div id="chips" hidden>
       <button class="chip" data-ov="focusmap">Focus map</button>
       <button class="chip" data-ov="peaking">Peaking</button>
       <button class="chip" data-ov="clip">Clipping</button>
@@ -372,6 +389,12 @@ canvas.strip{height:38px}
       <button class="chip" id="chipAll" hidden>All lenses</button>
       <button class="chip" id="cyc" hidden>Rotate ⟳</button>
     </div>
+  <div id="stage">
+    <div id="frame" hidden>
+      <canvas id="base"></canvas>
+      <canvas id="over"></canvas>
+    </div>
+
 
     <div id="drop">
       <svg class="logo big" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/><circle cx="20" cy="20" r="9" fill="none" stroke="var(--peak)" stroke-width="2.2"/><g stroke="var(--peak)" stroke-width="2.2" stroke-linecap="round"><path d="M20 2.5v4M20 33.5v4M2.5 20h4M33.5 20h4"/></g></svg>
@@ -392,7 +415,9 @@ canvas.strip{height:38px}
       <p class="fine">JPEGs. Nothing is uploaded — every measurement happens on this device.</p>
     </div>
 
+    <button id="unzoom" hidden title="Back to fit">⤢ <span id="zoomlbl">1.0×</span></button>
     <div id="busy">Reading…</div>
+  </div>
   </div>
 
   <section id="read">
@@ -2108,6 +2133,7 @@ async function show(i){
   State.shots.forEach((s,k)=>{ if(Math.abs(k-i) > 1) release(s); });
   busy('');
   if(!shot.counted){ shot.counted = true; noteHabit(shot); if(!shot.score) shot.score = rate(shot.result.e, shot.result.f, null); badgeThumb(i); }
+  resetView();
   fitCanvas(); paint(); renderLegend();
   maybeCoffee();
   const th = $('#strip').children[i];
@@ -2426,6 +2452,99 @@ function habitReport(){
   if(pct('shallow') > 55) out.push(`${pct('shallow')}% are shot with very shallow depth. Deliberate, presumably \u2014 but it means a small focus error costs you the whole frame.`);
   return out.length ? {n:h.n, out} : null;
 }
+
+/* ------------------------------------------------------------
+   ZOOM
+   A phone screen is small and 100% detail is the whole point of a
+   sharpness tool. Two fingers pinch and pan; one finger is left alone
+   so the subject box and lens frame still work. Desktop uses the wheel.
+------------------------------------------------------------ */
+const View = {s:1, x:0, y:0};
+const MAXZ = 8;
+
+function applyView(){
+  const fr = $('#frame'); if(!fr) return;
+  const st = $('#stage');
+  if(View.s <= 1.001){ View.s = 1; View.x = 0; View.y = 0; }
+  else if(st){
+    // never let the picture be dragged entirely off screen
+    const r = fr.getBoundingClientRect(), sr = st.getBoundingClientRect();
+    const w = r.width / (View.s || 1), h = r.height / (View.s || 1);
+    const maxX = Math.max(0, (w*View.s - sr.width)/2 + w*0.25);
+    const maxY = Math.max(0, (h*View.s - sr.height)/2 + h*0.25);
+    View.x = Math.max(-maxX, Math.min(maxX, View.x));
+    View.y = Math.max(-maxY, Math.min(maxY, View.y));
+  }
+  fr.style.transform = `translate(${View.x}px, ${View.y}px) scale(${View.s})`;
+  fr.style.transformOrigin = 'center center';
+  const btn = $('#unzoom');
+  if(btn){
+    btn.hidden = View.s <= 1.001;
+    const lbl = $('#zoomlbl');
+    if(lbl) lbl.textContent = View.s.toFixed(1) + '×';
+  }
+}
+
+function zoomAt(factor){
+  View.s = Math.max(1, Math.min(MAXZ, View.s * factor));
+  applyView();
+}
+
+function resetView(){ View.s=1; View.x=0; View.y=0; applyView(); }
+
+(function(){
+  const st = $('#stage'); if(!st) return;
+  let pinch = null;
+
+  const dist = t => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  const mid  = t => ({x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2});
+
+  st.addEventListener('touchstart', ev=>{
+    if(ev.touches.length === 2){
+      ev.preventDefault();
+      const t = ev.touches;
+      pinch = {d: dist(t), m: mid(t), s: View.s, x: View.x, y: View.y};
+    }
+  }, {passive:false});
+
+  st.addEventListener('touchmove', ev=>{
+    if(pinch && ev.touches.length === 2){
+      ev.preventDefault();
+      const t = ev.touches, d = dist(t), m = mid(t);
+      View.s = Math.max(1, Math.min(MAXZ, pinch.s * (d / (pinch.d||1))));
+      View.x = pinch.x + (m.x - pinch.m.x);
+      View.y = pinch.y + (m.y - pinch.m.y);
+      applyView();
+    }
+  }, {passive:false});
+
+  st.addEventListener('touchend', ev=>{ if(ev.touches.length < 2) pinch = null; });
+
+  // desktop: wheel zooms, drag with the middle button pans
+  st.addEventListener('wheel', ev=>{
+    if(!State.shots.length) return;
+    ev.preventDefault();
+    zoomAt(ev.deltaY < 0 ? 1.12 : 1/1.12);
+  }, {passive:false});
+
+  let mpan = null;
+  st.addEventListener('mousedown', ev=>{ if(ev.button === 1){ ev.preventDefault(); mpan = {x:ev.clientX-View.x, y:ev.clientY-View.y}; } });
+  window.addEventListener('mousemove', ev=>{ if(mpan){ View.x = ev.clientX-mpan.x; View.y = ev.clientY-mpan.y; applyView(); } });
+  window.addEventListener('mouseup', ()=>{ mpan = null; });
+
+  // double tap / double click snaps between fit and 3x
+  let lastTap = 0;
+  st.addEventListener('touchend', ev=>{
+    if(ev.touches.length) return;
+    const now = Date.now();
+    if(now - lastTap < 300){ View.s = View.s > 1.5 ? 1 : 3; View.x=0; View.y=0; applyView(); }
+    lastTap = now;
+  });
+  st.addEventListener('dblclick', ()=>{ View.s = View.s > 1.5 ? 1 : 3; View.x=0; View.y=0; applyView(); });
+
+  const ub = $('#unzoom');
+  if(ub) ub.onclick = resetView;
+})();
 
 /* ------------------------------------------------------------
    SHARED-IN PHOTOS
