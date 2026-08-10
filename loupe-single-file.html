@@ -297,6 +297,41 @@ canvas.strip{height:38px}
 }
 #coffee button.no:hover{color:var(--dim)}
 
+/* review before sorting */
+#review{
+  position:fixed;inset:0;z-index:40;background:var(--ink);
+  display:flex;flex-direction:column;
+  padding-top:max(0px,env(safe-area-inset-top));
+}
+#review[hidden]{display:none}
+.rv-head{
+  display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+  padding:15px 18px 11px;border-bottom:1px solid var(--line);
+}
+.rv-head h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;font-size:16px;margin:0;font-weight:600}
+.rv-head p{margin:3px 0 0;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.rv-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.rv-thresh{font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.rv-thresh select{background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:6px 7px;border-radius:2px;font:inherit}
+.rv-note{margin:0;padding:10px 18px;font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);background:var(--panel)}
+#rvGrid{
+  flex:1;overflow-y:auto;padding:14px 18px 26px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;
+  padding-bottom:max(26px,env(safe-area-inset-bottom));
+}
+.rv-item{border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--panel);cursor:pointer;text-align:left}
+.rv-item img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;background:#000}
+.rv-item .rv-meta{padding:7px 9px 9px}
+.rv-item .rv-name{font-family:var(--mono);font-size:10px;color:var(--dimmer);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.rv-item .rv-score{font-family:var(--display);font-size:17px;letter-spacing:.06em;font-weight:600;margin-top:2px;display:block}
+.rv-item .rv-tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:3px;display:block}
+.rv-item.keep{border-color:rgba(111,208,140,.75)}
+.rv-item.keep .rv-tag{color:var(--ok)}
+.rv-item.drop{border-color:rgba(255,61,113,.6)}
+.rv-item.drop img{opacity:.4}
+.rv-item.drop .rv-tag{color:var(--peak)}
+.rv-item.over .rv-tag:after{content:' · your call';color:var(--zebra)}
+
 /* cull bar + scored filmstrip */
 #cullbar{
   display:flex;align-items:center;gap:9px;flex-wrap:wrap;
@@ -377,6 +412,7 @@ canvas.strip{height:38px}
   <div id="chips" hidden>
       <button class="chip" data-ov="focusmap">Focus map</button>
       <button class="chip" data-ov="peaking">Peaking</button>
+      <button class="chip" data-ov="peakmark">Sharpest point</button>
       <button class="chip" data-ov="clip">Clipping</button>
       <button class="chip" data-ov="thirds">Thirds</button>
       <button class="chip" data-ov="phi">Golden ratio</button>
@@ -456,6 +492,31 @@ canvas.strip{height:38px}
   </section>
 </main>
 
+<div id="review" hidden>
+  <div class="rv-head">
+    <div>
+      <h3>Review before sorting</h3>
+      <p id="rvCount"></p>
+    </div>
+    <div class="rv-actions">
+      <label class="rv-thresh">Keep at or above
+        <select id="rvThresh">
+          <option value="1.5">1.5</option>
+          <option value="2">2.0</option>
+          <option value="2.5" selected>2.5</option>
+          <option value="3">3.0</option>
+          <option value="3.5">3.5</option>
+        </select>
+      </label>
+      <button class="btn" id="rvCsv">Download list</button>
+      <button class="btn primary" id="rvExport">Sort into folders</button>
+      <button class="btn" id="rvClose">Close</button>
+    </div>
+  </div>
+  <p class="rv-note">Loupe never deletes anything. It copies your frames into two new folders and leaves the originals exactly where they are. Tap any frame to overrule its verdict.</p>
+  <div id="rvGrid"></div>
+</div>
+
 <div id="cullbar" hidden></div>
 <div id="strip"></div>
 </div>
@@ -464,7 +525,7 @@ canvas.strip{height:38px}
 'use strict';
 
 /* ============================================================
-   ▼▼▼ EDIT THESE SIX LINES — nothing else in this file ▼▼▼
+   ▼▼▼ EDIT THESE SEVEN LINES — nothing else in this file ▼▼▼
    ============================================================ */
 const FM = {
   name:      'Frozen Moments Photography',
@@ -472,10 +533,11 @@ const FM = {
   site:      'https://www.fmphotography.ca/free-photo-tools',
   siteLabel: 'fmphotography.ca/free-photo-tools',
   photo:     'data:image/jpeg;base64,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',   // optional: paste a link to one of your photographs
-  tipUrl:    'https://buymeacoffee.com/fmphotography'
+  tipUrl:    'https://buymeacoffee.com/fmphotography',
+  feedback:  ''    // your email address — turns the feedback links on
 };
 /* ============================================================
-   ▲▲▲ EDIT THESE SIX LINES — nothing else in this file ▲▲▲
+   ▲▲▲ EDIT THESE SEVEN LINES — nothing else in this file ▲▲▲
 
    LOUPE — a frame-check prototype.
    Everything runs locally: no network, no uploads.
@@ -500,6 +562,8 @@ const State = {
   shotMM: null,
   lensMM: 85,
   lensAll: false,   // show every focal length at once
+  showPeak: false,  // the sharpest-region marker, off unless asked for
+  thresh: 2.5,      // score at or above which a frame is kept
   fstop: 2.8,
   dist: 5,
   aspect: 3/2,
@@ -1365,7 +1429,7 @@ function fitCanvas(){
 
 function heat(v){ // 0..1 → cool → peaking magenta
   if(v<0) return [60,62,70,0];
-  const s=[[26,32,60],[24,90,120],[70,190,180],[255,200,70],[255,61,113]];
+  const s=[[26,32,60],[30,66,104],[46,120,132],[120,190,120],[61,220,132]];
   const p=Math.min(0.999,Math.max(0,v))*(s.length-1), i=p|0, t=p-i;
   const a=s[i], b=s[i+1]||s[i];
   return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t, 1];
@@ -1377,18 +1441,18 @@ const LEGENDS = {
     <p>Every part of the picture is colour-coded by how <b>crisply</b> its detail is rendered.</p>
     <div class="ramp"></div>
     <div class="ramp-ends"><span>softest</span><span>sharpest</span></div>
-    <p><span class="swatch" style="background:rgb(255,61,113)"></span><b>Peach</b> is the plane of focus, the crispest thing in the frame.
-       <span class="swatch" style="background:rgb(255,200,70);margin-left:6px"></span><b>Yellow</b> is nearly there.
-       <span class="swatch" style="background:rgb(70,190,180);margin-left:6px"></span><b>Green</b> is falling away.
+    <p><span class="swatch" style="background:rgb(61,220,132)"></span><b>Bright green</b> is the crispest detail in the frame.
+       <span class="swatch" style="background:rgb(120,190,120);margin-left:6px"></span><b>Pale green</b> is nearly there.
+       <span class="swatch" style="background:rgb(46,120,132);margin-left:6px"></span><b>Teal</b> is falling away.
        <span class="swatch" style="background:rgb(26,32,60);margin-left:6px"></span><b>Dark blue</b> is the softest detail in the frame.</p>
     <p><b>Faint grey</b> means there was no detail there to measure &mdash; smooth sky, still water, a plain wall. That is not a fault.</p>
-    <p>The <b>peach target</b> marks the single crispest point, and stays on the picture whether or not this map is showing.</p>
+    <p>Green means crisp throughout, here and in peaking. Amber and blue always mean a warning, never a reading.</p>
     <p><b>Read it as a map, not a verdict.</b> The scale always runs from this frame's softest to its sharpest, so peach appears even in a photograph where nothing is sharp. It tells you <em>where</em> focus landed. Whether that is sharp enough is on the Focus tab.</p>`,
 
   peaking: `
     <h5>Focus peaking</h5>
     <p>The tool film crews use to focus by hand. Every pixel carrying the <b>finest detail</b> is outlined in
-       <span class="swatch" style="background:rgb(255,61,113)"></span>peach. Whatever glows is genuinely in focus.</p>
+       <span class="swatch" style="background:rgb(61,220,132)"></span>green. Whatever glows is genuinely in focus.</p>
     <p>Look for the glow to sit where you meant it &mdash; an eye, bark, an edge. If it is on the branch behind your subject, focus missed. If almost nothing glows anywhere, the frame is soft.</p>
     <p>Smooth areas never glow however sharp the lens, because there is no detail there to render. Judge it on the textured parts.</p>`,
 
@@ -1441,17 +1505,17 @@ function drawOverlays(){
   if(O.has('tri'))    drawTriangles(cx,W,H,State.orient,line);
   if(O.has('lens'))   drawLensBox(cx,W,H,line);
 
-  // focus marker always shown when focus data is meaningful
-  if(f.valid >= 6){
+  // the sharpest-region marker, only when asked for
+  if(f.valid >= 6 && State.showPeak){
     const x=f.focusX*W, y=f.focusY*H, r=Math.max(9,W/70);
-    cx.strokeStyle='rgba(255,61,113,.95)'; cx.lineWidth=line*1.6;
+    cx.strokeStyle=CONFIRM; cx.lineWidth=line*1.6;
     cx.beginPath(); cx.arc(x,y,r,0,Math.PI*2); cx.stroke();
     cx.beginPath();
     cx.moveTo(x-r*1.7,y); cx.lineTo(x-r*.45,y); cx.moveTo(x+r*.45,y); cx.lineTo(x+r*1.7,y);
     cx.moveTo(x,y-r*1.7); cx.lineTo(x,y-r*.45); cx.moveTo(x,y+r*.45); cx.lineTo(x,y+r*1.7);
     cx.stroke();
     // say what it is, or nobody can know
-    const lab = 'FOCUS';
+    const lab = 'SHARPEST';
     cx.font = `600 ${Math.max(9, W/95)}px ui-monospace,monospace`;
     cx.textBaseline = 'middle';
     const tw2 = cx.measureText(lab).width;
@@ -1459,12 +1523,12 @@ function drawOverlays(){
     if(lx + tw2 + W/60 > W) lx = x - r*1.9 - tw2 - W/120;
     cx.fillStyle = 'rgba(10,11,13,.82)';
     cx.fillRect(lx - W/300, ly - W/110, tw2 + W/150, W/55);
-    cx.fillStyle = 'rgba(255,61,113,.95)';
+    cx.fillStyle = CONFIRM;
     cx.fillText(lab, lx, ly + W/900);
 
     if(f.split && f.rivalX !== null){
       const rx=f.rivalX*W, ry=f.rivalY*H, rr=r*0.8;
-      cx.strokeStyle='rgba(255,61,113,.5)'; cx.lineWidth=line*1.2;
+      cx.strokeStyle=CONFIRM_DIM; cx.lineWidth=line*1.2;
       cx.setLineDash([line*3, line*3]);
       cx.beginPath(); cx.arc(rx,ry,rr,0,Math.PI*2); cx.stroke();
       cx.setLineDash([]);
@@ -1475,7 +1539,7 @@ function drawOverlays(){
       if(ax2 + tw3 + W/60 > W) ax2 = rx - rr*1.5 - tw3;
       cx.fillStyle='rgba(10,11,13,.8)';
       cx.fillRect(ax2 - W/300, ry - W/120, tw3 + W/150, W/62);
-      cx.fillStyle='rgba(255,61,113,.75)';
+      cx.fillStyle=CONFIRM_DIM;
       cx.fillText(l2, ax2, ry + W/900);
     }
   }
@@ -1580,6 +1644,10 @@ function drawLensBox(cx,W,H,lw){
   cx.fillText(label, x+W/140, Math.max(W/76, y-W/76));
 }
 
+// Green confirms, amber warns, and the two never mean the same thing.
+const CONFIRM     = 'rgba(61,220,132,.98)';
+const CONFIRM_DIM = 'rgba(61,220,132,.62)';
+
 // One colour for every composition guide — mixed colours read as a fault code
 const GRID     = 'rgba(255,194,75,.9)';
 const GRID_DOT = 'rgba(255,194,75,.98)';
@@ -1629,7 +1697,7 @@ function drawPeaking(cx,W,H,shot){
   for(let i=0;i<w*h;i++){
     if(lap[i]>thr){
       const a = Math.min(1,(lap[i]-thr)/(mx-thr+1e-3));
-      out.data[i*4]=255; out.data[i*4+1]=61; out.data[i*4+2]=113;
+      out.data[i*4]=61; out.data[i*4+1]=220; out.data[i*4+2]=132;
       out.data[i*4+3]=90+165*a;
     }
   }
@@ -1810,7 +1878,7 @@ function paint(){
   /* focus */
   const sub = State.subject ? subjectStats(f,State.subject) : null;
   $('#focBody').innerHTML = `
-    <p class="purpose">The <b style="color:var(--peak)">peach target</b> on your photograph marks the <b>plane of focus</b> — the centre of the largest crisply-rendered region in the frame. If it is not on your subject, focus missed. Everything below describes how sharp that point is and how far the sharpness reaches from it.${f.split?` <b>This frame has two separate sharp areas</b>, marked with a dashed circle — likely two things at the same distance, or a subject and a background detail that happen to share the focus plane.`:''}</p>
+    <p class="purpose">This measures <b>where the finest detail is</b>, which is not always your subject. Fine texture — moss, gravel, foliage, bark — carries more detail than a smooth in-focus surface like skin, feathers or water-worn rock, so the marker can sit away from a subject that is perfectly sharp. Read the map and the numbers below rather than the marker alone. Switch it on with <b>Sharpest point</b> if you want to see it.${f.split?` <b>This frame has two separate detailed areas</b> — likely two things at the same distance.`:''}</p>
     <div class="verdict"><i class="dot ${f.level==='good'?'good':f.level==='warn'?'warn':'bad'}"></i>
       <p><b>${f.head}.</b> ${f.text}</p></div>
     <canvas class="plot strip" id="prof"></canvas>
@@ -1877,7 +1945,8 @@ function paint(){
 
     <p class="note">Only exposure and sharpness carry stars, because only they are measurements — a frame either holds its highlights or it doesn't. Composition is never scored here. A subject dead centre is not worse than one on a thirds line, and plenty of the best photographs ever made would fail every grid in this app. The Frame tab shows which structure your picture is already using, and leaves the judgement to you.</p>
     ${(()=>{ const hb=habitReport(); return hb ? `<p class="subh">Your patterns &mdash; across ${hb.n} frames</p><ul class="lst good habits">${hb.out.map(t=>`<li>${t}</li>`).join('')}</ul><p class="note">Counted on this device only, and never sent anywhere. Clearing your browser data resets it.</p>` : ''; })()}
-    ${!State.ref ? `<p class="note">The sharpness rating is provisional until you open a frame you know is tack sharp and set it as your reference, on the Focus tab.</p>` : ''}`;
+    ${!State.ref ? `<p class="note">The sharpness rating is provisional until you open a frame you know is tack sharp and set it as your reference, on the Focus tab.</p>` : ''}
+    ${FM.feedback ? `<p class="note">Loupe is being tested and improved. Thoughts of any kind are welcome at <a href="mailto:${FM.feedback}" style="color:var(--ok)">${FM.feedback}</a>.</p>` : ''}`;
 
   /* lens */
   const p = lensPlan();
@@ -2064,7 +2133,7 @@ async function load(files){
     .sort((a,b)=> (a.name||'').localeCompare(b.name||'', undefined, {numeric:true}));
   if(!list.length){ busy('No photos in that selection.'); setTimeout(()=>busy(''),2800); return; }
 
-  const CAP = 250;
+  const CAP = 20000;                 // effectively no limit; frames are released as they load
   const batch = list.slice(0, CAP);
   State.shots.forEach(release);
   State.shots = []; State.idx = -1; $('#strip').innerHTML=''; setEmptyState();
@@ -2142,7 +2211,7 @@ async function show(i){
 // One overlay per group. Stacking a spiral on top of thirds on top of
 // diagonals just makes a mess of the photograph.
 const OV_GROUP = {
-  focusmap:'read', peaking:'read', clip:'read',
+  focusmap:'read', peaking:'read', clip:'read', peakmark:'mark',
   thirds:'grid', phi:'grid', spiral:'grid', diag:'grid', tri:'grid',
   lens:'lens'
 };
@@ -2150,7 +2219,7 @@ const OV_GROUP = {
 function syncChips(){
   document.querySelectorAll('#chips .chip').forEach(c=>{
     const k=c.dataset.ov; if(!k) return;
-    const on = State.overlays.has(k);
+    const on = k === 'peakmark' ? State.showPeak : State.overlays.has(k);
     c.classList.toggle('on', on && OV_GROUP[k]!=='read');
     c.classList.toggle('peakon', on && OV_GROUP[k]==='read');
   });
@@ -2161,6 +2230,7 @@ function syncChips(){
 
 function setOverlay(k){
   State.legendOff = null;                 // a fresh choice deserves its explanation
+  if(k === 'peakmark'){ State.showPeak = !State.showPeak; syncChips(); drawOverlays(); return; }
   if(State.overlays.has(k)){ State.overlays.delete(k); }
   else {
     const g = OV_GROUP[k];
@@ -2260,6 +2330,58 @@ window.addEventListener('keydown', e=>{
 function seen(k){ try{ return !!localStorage.getItem(k); }catch(e){ return false; } }
 function mark(k){ try{ localStorage.setItem(k,'1'); }catch(e){} }
 
+/* ------------------------------------------------------------
+   FEEDBACK
+   The most useful thing a tester can send is the frame where Loupe
+   disagreed with their eye — so that report carries the NUMBERS
+   automatically. No image is attached and nothing is uploaded; it
+   opens their own mail app with the text already written, which they
+   can read and edit before sending.
+------------------------------------------------------------ */
+function frameReport(){
+  const shot = State.shots[State.idx];
+  if(!shot || !shot.result) return '';
+  const {e,f} = shot.result;
+  const R = rate(e, f, State.subject ? subjectStats(f, State.subject) : null);
+  return [
+    `File: ${shot.name}`,
+    `Loupe said: ${R.overall.toFixed(1)} of 5  (exposure ${R.exposure.toFixed(1)}, sharpness ${R.focus===null?'n/a':R.focus.toFixed(1)})`,
+    `Clipped white ${e.clipAll.toFixed(2)}% · pure black ${e.crush.toFixed(2)}% · tones ${e.p1}-${e.p99}`,
+    `Peak acuity ${f.peak.toFixed(3)} · ${(f.frac*100).toFixed(0)}% of frame at the focus plane · ${f.regions} sharp region(s)`,
+    `Focus landed at ${(f.focusX*100).toFixed(0)}% across, ${(f.focusY*100).toFixed(0)}% down`,
+    f.hasHorizon ? `Horizon ${f.tilt.toFixed(2)}°` : 'No clear horizon',
+    `Measured at ${shot.result.anaW}px of ${shot.result.natW}x${shot.result.natH}`
+  ].join('\n');
+}
+
+function mailFeedback(kind){
+  if(!FM.feedback) return;
+  const subject = kind === 'frame' ? 'Loupe — this verdict looks wrong to me' : 'Loupe — feedback';
+  const body = kind === 'frame'
+    ? [
+        'What I see when I look at this frame:',
+        '',
+        '',
+        'What Loupe told me:',
+        frameReport(),
+        '',
+        `(${navigator.userAgent})`
+      ].join('\n')
+    : [
+        'What I was trying to do:',
+        '',
+        '',
+        'What happened instead:',
+        '',
+        '',
+        'The one thing I would change first:',
+        '',
+        '',
+        `(${navigator.userAgent})`
+      ].join('\n');
+  location.href = `mailto:${FM.feedback}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 function renderColophon(){
   const el = $('#colophon'); if(!el) return;
   const pic = FM.photo
@@ -2274,7 +2396,10 @@ function renderColophon(){
         <span class="mark-go">${FM.siteLabel} &rarr;</span>
       </span>
     </a>
-    ${FM.tipUrl && seen('loupe.coffee') ? `<a class="mark-support" href="${FM.tipUrl}" target="_blank" rel="noopener">Support Loupe &rarr;</a>` : ''}`;
+    ${FM.tipUrl && seen('loupe.coffee') ? `<a class="mark-support" href="${FM.tipUrl}" target="_blank" rel="noopener">Support Loupe &rarr;</a>` : ''}
+    ${FM.feedback ? `<a class="mark-support" href="#" id="fbLink">Send feedback &rarr;</a>` : ''}`;
+  const fl = $('#fbLink');
+  if(fl) fl.onclick = (ev)=>{ ev.preventDefault(); mailFeedback('general'); };
 }
 
 function counted(){
@@ -2378,6 +2503,7 @@ function renderCullBar(){
     <span class="cullstat strongtxt"><b>${strong}</b> strong</span>
     <span class="cullstat weaktxt"><b>${weak}</b> weak</span>
     <span class="cullspacer"></span>
+    <button class="btn primary" id="btnReview">Review &amp; sort</button>
     <button class="btn" id="sortWorst">Worst first</button>
     <button class="btn" id="sortBest">Best first</button>
     <button class="btn" id="sortOrig">Shot order</button>`;
@@ -2387,9 +2513,110 @@ function renderCullBar(){
     State.idx = State.shots.indexOf(cur);
     [...$('#strip').children].forEach((el,k)=>el.classList.toggle('on',k===State.idx));
   };
+  const rb = $('#btnReview'); if(rb) rb.onclick = openReview;
   $('#sortWorst').onclick = ()=>reorder((a,b)=>(a.score?a.score.overall:9)-(b.score?b.score.overall:9));
   $('#sortBest').onclick  = ()=>reorder((a,b)=>(b.score?b.score.overall:0)-(a.score?a.score.overall:0));
   $('#sortOrig').onclick  = ()=>reorder((a,b)=>a.ord-b.ord);
+}
+
+/* ------------------------------------------------------------
+   REVIEW AND SORT
+   Loupe proposes, the photographer decides, and nothing is ever
+   deleted. Frames are COPIED into two new folders; the originals stay
+   exactly where they were, so a bad threshold costs nothing.
+------------------------------------------------------------ */
+function rvDefault(shot){
+  return shot.score ? shot.score.overall >= State.thresh : true;   // unscored is kept
+}
+function rvDecision(shot){
+  return shot.keep === undefined ? rvDefault(shot) : shot.keep;
+}
+
+function openReview(){
+  const scored = State.shots.filter(s=>s.score);
+  if(!scored.length) return;
+  $('#review').hidden = false;
+  renderReview();
+}
+
+function renderReview(){
+  const grid = $('#rvGrid'); if(!grid) return;
+  const keep = State.shots.filter(rvDecision).length;
+  const drop = State.shots.length - keep;
+  const overridden = State.shots.filter(s=>s.keep !== undefined && s.keep !== rvDefault(s)).length;
+  $('#rvCount').textContent =
+    `${State.shots.length} frames · ${keep} to keep · ${drop} to set aside` +
+    (overridden ? ` · ${overridden} overruled by you` : '');
+
+  grid.innerHTML = '';
+  State.shots.forEach((shot,i)=>{
+    const k = rvDecision(shot);
+    const over = shot.keep !== undefined && shot.keep !== rvDefault(shot);
+    const el = document.createElement('button');
+    el.className = 'rv-item ' + (k ? 'keep' : 'drop') + (over ? ' over' : '');
+    el.innerHTML = `
+      <img src="${shot.thumb}" alt="">
+      <span class="rv-meta">
+        <span class="rv-name">${shot.name}</span>
+        <span class="rv-score">${shot.score ? shot.score.overall.toFixed(1) : '—'}<span style="font-size:11px;color:var(--dimmer)"> / 5</span></span>
+        <span class="rv-tag">${k ? 'keep' : 'set aside'}</span>
+      </span>`;
+    el.onclick = ()=>{ shot.keep = !rvDecision(shot); renderReview(); };
+    grid.appendChild(el);
+  });
+}
+
+function rvCsv(){
+  const rows = [['file','overall','exposure','sharpness','decision']];
+  State.shots.forEach(s=>rows.push([
+    '"'+String(s.name).replace(/"/g,'""')+'"',
+    s.score ? s.score.overall.toFixed(1) : '',
+    s.score ? s.score.exposure.toFixed(1) : '',
+    s.score && s.score.focus !== null ? s.score.focus.toFixed(1) : '',
+    rvDecision(s) ? 'keep' : 'set aside'
+  ]));
+  const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'loupe-cull.csv';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+async function rvExport(){
+  if(!window.showDirectoryPicker){
+    busy('This browser can\u2019t write folders. Use Chrome or Edge on a computer, or download the list instead.');
+    setTimeout(()=>busy(''), 5200);
+    return;
+  }
+  let dir;
+  try{ dir = await window.showDirectoryPicker({mode:'readwrite'}); }
+  catch(err){ return; }                                   // they cancelled
+
+  const btn = $('#rvExport');
+  if(btn) btn.disabled = true;
+  try{
+    const keepDir = await dir.getDirectoryHandle('Loupe Keep', {create:true});
+    const dropDir = await dir.getDirectoryHandle('Loupe Set Aside', {create:true});
+    let done = 0, failed = 0;
+    for(const shot of State.shots){
+      const target = rvDecision(shot) ? keepDir : dropDir;
+      try{
+        const fh = await target.getFileHandle(shot.name, {create:true});
+        const w = await fh.createWritable();
+        await w.write(shot.file);                          // a COPY — original untouched
+        await w.close();
+        done++;
+      }catch(err){ failed++; }
+      if(done % 5 === 0) $('#rvCount').textContent = `Copying ${done} of ${State.shots.length}\u2026`;
+    }
+    $('#rvCount').textContent =
+      `Copied ${done} frames into "Loupe Keep" and "Loupe Set Aside". Your originals are untouched.` +
+      (failed ? ` ${failed} could not be written.` : '');
+  }catch(err){
+    $('#rvCount').textContent = 'Could not write to that folder. Pick one you have permission to change.';
+  }
+  if(btn) btn.disabled = false;
 }
 
 /* ------------------------------------------------------------
@@ -2571,6 +2798,14 @@ async function pickupShared(){
   }catch(err){ busy(''); }
 }
 if(/[?&]shared=/.test(location.search)) window.addEventListener('load', pickupShared);
+
+(function(){
+  const c = $('#rvClose');  if(c) c.onclick = ()=>{ $('#review').hidden = true; };
+  const x = $('#rvCsv');    if(x) x.onclick = rvCsv;
+  const e = $('#rvExport'); if(e) e.onclick = rvExport;
+  const t = $('#rvThresh');
+  if(t) t.onchange = ()=>{ State.thresh = parseFloat(t.value); renderReview(); };
+})();
 
 let rt; window.addEventListener('resize', ()=>{clearTimeout(rt); rt=setTimeout(()=>{fitCanvas();
   const s=State.shots[State.idx]; if(s&&s.result){ plotHistogram($('#hist'),s.result.e); plotProfile($('#prof'),s.result.f); }},140);});
