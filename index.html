@@ -153,7 +153,7 @@ main{flex:1;display:flex;min-height:0}
 #legend b{color:var(--text);font-weight:600}
 #legend em{color:var(--text);font-style:italic}
 .ramp{height:9px;border-radius:2px;margin:8px 0 5px;
-  background:linear-gradient(90deg,rgb(26,32,60),rgb(24,90,120),rgb(70,190,180),rgb(255,200,70),rgb(255,61,113));}
+  background:linear-gradient(90deg,rgb(22,34,78),rgb(46,96,196),rgb(128,86,150),rgb(238,72,62),rgb(61,220,132));}
 .ramp-ends{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dimmer);margin-bottom:7px}
 .swatch{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px}
 #legend .close{position:absolute;top:6px;right:8px;font-family:var(--mono);font-size:14px;color:var(--dimmer);padding:2px 5px;line-height:1}
@@ -536,7 +536,7 @@ const FM = {
   siteLabel: 'fmphotography.ca/free-photo-tools',
   photo:     './banner.jpg',   // optional: paste a link to one of your photographs
   tipUrl:    'https://buymeacoffee.com/fmphotography',
-  feedback:  ''    // your email address — turns the feedback links on
+  feedback:  'fmphotography7@gmail.com'
 };
 /* ============================================================
    ▲▲▲ EDIT THESE SEVEN LINES — nothing else in this file ▲▲▲
@@ -1431,7 +1431,7 @@ function fitCanvas(){
 
 function heat(v){ // 0..1 → cool → peaking magenta
   if(v<0) return [60,62,70,0];
-  const s=[[26,32,60],[30,66,104],[46,120,132],[120,190,120],[61,220,132]];
+  const s=[[22,34,78],[46,96,196],[128,86,150],[238,72,62],[61,220,132]];
   const p=Math.min(0.999,Math.max(0,v))*(s.length-1), i=p|0, t=p-i;
   const a=s[i], b=s[i+1]||s[i];
   return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t, 1];
@@ -1443,11 +1443,11 @@ const LEGENDS = {
     <p>Every part of the picture is colour-coded by how <b>crisply</b> its detail is rendered.</p>
     <div class="ramp"></div>
     <div class="ramp-ends"><span>softest</span><span>sharpest</span></div>
-    <p><span class="swatch" style="background:rgb(61,220,132)"></span><b>Bright green</b> is the crispest detail in the frame.
-       <span class="swatch" style="background:rgb(120,190,120);margin-left:6px"></span><b>Pale green</b> is nearly there.
-       <span class="swatch" style="background:rgb(46,120,132);margin-left:6px"></span><b>Teal</b> is falling away.
-       <span class="swatch" style="background:rgb(26,32,60);margin-left:6px"></span><b>Dark blue</b> is the softest detail in the frame.</p>
-    <p><b>Faint grey</b> means there was no detail there to measure &mdash; smooth sky, still water, a plain wall. That is not a fault.</p>
+    <p><span class="swatch" style="background:rgb(61,220,132)"></span><b>Bright green</b> — the crispest detail in the frame.
+       <span class="swatch" style="background:rgb(238,72,62);margin-left:6px"></span><b>Red</b> — sharpness tailing off.
+       <span class="swatch" style="background:rgb(46,96,196);margin-left:6px"></span><b>Blue</b> — well off the focus plane.
+       <span class="swatch" style="background:rgb(120,124,134);margin-left:6px"></span><b>Grey</b> — no detail there to measure.</p>
+    <p>Grey is smooth sky, still water or a plain wall &mdash; nothing to judge, and <b>not</b> a fault.</p>
     <p>Green means crisp throughout, here and in peaking. Amber and blue always mean a warning, never a reading.</p>
     <p><b>Read it as a map, not a verdict.</b> The scale always runs from this frame's softest to its sharpest, so peach appears even in a photograph where nothing is sharp. It tells you <em>where</em> focus landed. Whether that is sharp enough is on the Focus tab.</p>`,
 
