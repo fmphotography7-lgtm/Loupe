@@ -1,0 +1,103 @@
+StudioFlow 3.8.3 -- Phase 1: Lowest-Risk Cleanup Audit
+=======================================================
+Scope decision (agreed with user): tackle lowest-risk items first, assess
+remaining risk before touching Product/Inventory/Materials/Squarespace/
+Production/Analytics services -- those are Phase 2+ and have NOT been
+started. This build is legacy-file cleanup and a documented audit only.
+Nothing about the app's behavior should be different from the user's
+perspective.
+
+WHAT WAS ACTUALLY REMOVED (proven safe, verified before deletion)
+-------------------------------------------------------------------
+5 of 16 build-*.js legacy patch files were confirmed genuinely dead and
+removed: build-3.0.2.js, build-3.0.3.js, build-3.0.4.js, build-3.2.0.js,
+build-12.1.1.js.
+
+How this was verified, not assumed:
+ 1. Compared every file on disk in modules/ against every <script> tag in
+    index.html -- all 51 files were referenced, so "unreferenced file"
+    was not a valid removal criterion here; every build-*.js is loaded.
+ 2. Read each candidate file's full content. All 5 removed files did
+    exactly one thing: set sf.state.appVersion/buildName to a stale
+    version string and log a one-time "Upgraded to..." activity message.
+    No other logic of any kind.
+ 3. Searched the entire project for every other place appVersion/
+    buildName is read. Only settings.js displays it, as
+    `${stats?.appVersion||sf.state.appVersion||''}` -- a safe fallback to
+    empty string, so removing files that merely SET this value carries no
+    crash risk. Several other (untouched) files still set this field too,
+    so the version display keeps working.
+ 4. Removed the files and their <script> tags together, kept a backup
+    copy, and re-validated: every core module still passes a syntax
+    check, the existing automated test suite (10 tests) still passes.
+
+WHAT WAS NOT REMOVED, AND WHY
+-------------------------------------------------------------------
+7 of the 16 build-*.js files directly touch window.SFRoomDesigner. This
+spec explicitly prohibits modifying Room Designer. Removing or altering
+these files -- even ones that look like simple version-bookkeeping on the
+surface -- would change Room Designer's effective loaded behavior, which
+counts as modifying it. Left completely alone: build-12.0.3.js,
+build-12.0.4.js, build-12.0.5.js, build-12.0.6.js, build-12.1.0.js,
+build-12.1.2.js, build-3.0.0.js.
+
+build-3.5.0-final-cleanup.js was reviewed and NOT removed: unlike the
+others, it isn't pure version bookkeeping -- it's a one-time data-cleanup
+script that filters out a specific hardcoded list of junk/test artwork
+titles ("test 2x3", "img 2906", "copy of endless road", etc.) on every
+launch. Its job is almost certainly already done (those titles are
+presumably long gone), making it a no-op now, but it actively mutates
+sf.state.artworks by title match rather than being inert like the others,
+so it's flagged for a deliberate decision next phase rather than removed
+without asking.
+
+build-11.5.6.js, build-11.6.0.js, build-11.6.1.js were left alone this
+pass -- they touch commerce-hub.js/dashboard.js/business-intelligence.js,
+which are large, actively-changing files. Given the "lowest risk first"
+instruction, verifying these thoroughly enough to remove safely belongs
+in the next phase alongside the render-duplication findings below, not
+bundled into a same-day cleanup pass.
+
+DUPLICATE-LOGIC AUDIT (documented, not yet touched -- this is the real
+input for Phase 2/3 planning)
+-------------------------------------------------------------------
+Scanned every module for competing render() definitions -- the exact
+failure pattern already hit twice in this project directly (Gallery
+Manager and the Room Designer restoration both had a later definition
+silently overriding an earlier one, and a fix applied to the wrong one
+was invisible until caught). Found:
+ - dashboard.js: 6 competing render definitions
+ - commerce-hub.js: 2
+ - galleries.js: 2 (one is now consolidated correctly, per the earlier
+   gallery-linking fix, but the dead first definition is still present)
+ - inventory-sales.js: 2
+ - build-12.0.5.js: 2 (Room Designer -- not touched, per above)
+
+Recommendation for Phase 2: dashboard.js is the highest-value target --
+6 render definitions in one file is a real maintainability risk (the
+exact bug class that caused the Outstanding Balances phantom-field issue
+to survive one full fix cycle undetected). This should be the first real
+consolidation, not the services work, since Analytics/Dashboard reads
+from nearly every other service being proposed.
+
+WHAT THIS BUILD DELIBERATELY DID NOT DO
+-------------------------------------------------------------------
+No Product/Inventory/Materials/Squarespace/Production/Analytics Service
+was created. No folder restructuring. No logging/error-handling
+standardization. No Developer > System Information panel. These are
+real, valuable parts of the 3.8.3 spec, but they touch live behavior
+(inventory reservation, order fulfillment, pricing) and deserve their own
+scoped, tested passes rather than being bundled into a same-day cleanup
+alongside file deletion. Per the agreed approach: lowest risk first, then
+assess how risky the rest actually is with real evidence in hand.
+
+TEST RESULTS
+-------------------------------------------------------------------
+- Every core module: node --check passes.
+- Existing automated suite (tests/production-workspace.test.js): 10/10
+  passing, unchanged.
+- Room Designer, its frame assets, and its CSS block: confirmed
+  byte-for-byte untouched (file timestamp check).
+- Application should launch and behave identically -- only change is 5
+  files fewer being loaded, each of which did nothing but overwrite a
+  version-label string.

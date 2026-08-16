@@ -1,0 +1,68 @@
+{
+  "name": "studioflow",
+  "version": "4.0.209",
+  "private": true,
+  "description": "StudioFlow 4.0 - Fine art photography workspace",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable",
+    "sync-version": "node scripts/sync-version.js",
+    "predist": "node scripts/sync-version.js && node scripts/personal-assets.js check",
+    "personal:hide": "node scripts/personal-assets.js hide",
+    "personal:restore": "node scripts/personal-assets.js restore"
+  },
+  "devDependencies": {
+    "electron": "28.3.3",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.studioflow.desktop",
+    "productName": "StudioFlow",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "splash-preload.js",
+      "splash.html",
+      "styles.css",
+      "renderer.js",
+      "modules/**/*",
+      "assets/**/*",
+      "site-template/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/studioflow.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "asarUnpack": [
+      "node_modules/exiftool-vendored.*/**/*",
+      "site-template/**/*",
+      "assets/splash.*"
+    ]
+  },
+  "productName": "StudioFlow",
+  "dependencies": {
+    "exiftool-vendored": "^28.8.0",
+    "net-snmp": "^3.11.2",
+    "pdf-parse": "^1.1.1",
+    "pdf-lib": "^1.17.1"
+  },
+  "optionalDependencies": {
+    "exiftool-vendored.exe": "^13.0.0"
+  }
+}

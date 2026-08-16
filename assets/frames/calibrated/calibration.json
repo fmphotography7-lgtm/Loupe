@@ -1,0 +1,80 @@
+{
+  "black": {
+    "asset": "assets/frames/calibrated/black.png",
+    "pixelSize": [
+      1417,
+      958
+    ],
+    "openingPct": {
+      "left": 4.728299223712068,
+      "top": 6.993736951983298,
+      "right": 95.34227240649258,
+      "bottom": 93.31941544885177
+    }
+  },
+  "brushed-metal": {
+    "asset": "assets/frames/calibrated/brushed-metal.png",
+    "pixelSize": [
+      1415,
+      937
+    ],
+    "openingPct": {
+      "left": 6.501766784452297,
+      "top": 10.138740661686233,
+      "right": 93.4982332155477,
+      "bottom": 89.96798292422625
+    }
+  },
+  "light-grey": {
+    "asset": "assets/frames/calibrated/light-grey.png",
+    "pixelSize": [
+      1382,
+      921
+    ],
+    "openingPct": {
+      "left": 6.2228654124457305,
+      "top": 9.337676438653638,
+      "right": 93.77713458755427,
+      "bottom": 90.22801302931596
+    }
+  },
+  "light-oak": {
+    "asset": "assets/frames/calibrated/light-oak.png",
+    "pixelSize": [
+      1232,
+      865
+    ],
+    "openingPct": {
+      "left": 5.357142857142857,
+      "top": 7.8612716763005785,
+      "right": 94.64285714285714,
+      "bottom": 92.3699421965318
+    }
+  },
+  "walnut": {
+    "asset": "assets/frames/calibrated/walnut.png",
+    "pixelSize": [
+      1256,
+      891
+    ],
+    "openingPct": {
+      "left": 5.812101910828026,
+      "top": 7.968574635241302,
+      "right": 94.18789808917197,
+      "bottom": 92.0314253647587
+    }
+  },
+  "white": {
+    "asset": "assets/frames/calibrated/white.png",
+    "pixelSize": [
+      1374,
+      906
+    ],
+    "openingPct": {
+      "left": 4.87627365356623,
+      "top": 7.174392935982341,
+      "right": 95.41484716157204,
+      "bottom": 93.04635761589404
+    }
+  }
+}

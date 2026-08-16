@@ -1,0 +1,90 @@
+Frozen Moments — search and AI visibility
+=========================================
+
+WHAT IS BUILT
+-------------
+seo.js writes, per page: a real title and description, a canonical URL, Open
+Graph and Twitter sharing cards, and schema.org structured data —
+ProfessionalService/LocalBusiness on every page, Product with price range and
+availability on a print, Service with its package list on a service page,
+CollectionPage on a gallery, Person on the home page, and breadcrumbs.
+
+robots.txt allows AI crawlers deliberately and blocks client galleries.
+llms.txt is a plain-language summary for AI assistants.
+sitemap.xml lists every page — REGENERATE IT at export, or it goes stale the
+first time an artwork is added.
+
+THE THREE OPENAI BOTS ARE NOT INTERCHANGEABLE
+---------------------------------------------
+  OAI-SearchBot  builds the index ChatGPT search retrieves from. Blocked, you
+                 are never a candidate to be cited. This is the important one.
+  ChatGPT-User   fetches the site live when someone asks about it or follows a
+                 citation. Blocked, you cannot appear in the answer someone is
+                 reading right now.
+  GPTBot         training data only. Allowing or blocking it changes nothing
+                 about whether ChatGPT cites you.
+All three are allowed here, along with the equivalents for Claude, Perplexity,
+Google, Apple, Amazon, Meta and Cohere.
+
+A ROBOTS.TXT TRAP WORTH KNOWING: a crawler obeys only the most specific group
+naming it and does NOT inherit "User-agent: *". Every Disallow must be repeated
+in each group, which is why the AI bots are listed together in ONE group that
+carries the client-gallery rules. Split them into separate groups and the
+client galleries become crawlable.
+
+
+CLIENT GALLERIES AND CRAWLING — WHAT ACTUALLY KEEPS THEM OUT
+------------------------------------------------------------
+Four separate things, because robots.txt alone is not enough:
+
+1. robots.txt disallows /client.html, /client-galleries/ and /client-images/
+   for every crawler including the AI ones. This is a REQUEST. Well-behaved
+   crawlers honour it; nothing is forced.
+2. client.html sends "noindex, nofollow" in the page itself, which is the
+   instruction that actually removes a page from results if it was ever seen.
+3. Nothing on the public site LINKS to a client gallery, so no crawler finds
+   one by following links. The link only exists in an email.
+4. The gallery folder name is long and random, and the contents are encrypted.
+
+Note that 1 and 2 pull against each other: a page blocked in robots.txt is
+never fetched, so its noindex is never READ. That is fine here because nothing
+links to these pages — but if a client ever shares their link publicly, the
+robots.txt block is what keeps it out, not the noindex.
+
+The one thing that would undo all of it is directory listing being switched on
+at the server. See SERVER-NOTES.txt, section 2.
+
+
+THE LIMIT YOU SHOULD KNOW ABOUT
+-------------------------------
+All of the above is written by JavaScript, in the browser, after the page
+loads. Google runs JavaScript and will see it. Many other crawlers — including
+some AI ones — read the HTML exactly as the server sends it, and that HTML
+currently contains an empty page with a placeholder title.
+
+There is a second, larger problem underneath it: every photograph shares ONE
+url, product.html, with the piece chosen by ?id=. Search engines treat that as
+a single page. 72 photographs are competing to be the same result.
+
+THE FIX is for the StudioFlow export to write a real HTML file per artwork —
+prints/shannon-falls.html — with the title, description, price and structured
+data already in the file. Same for each gallery and service. This is a change
+to website-export.js, not to the template. Until it is done, expect the site to
+be found by its home page and its service pages rather than by individual
+photographs.
+
+
+WHAT MATTERS MORE THAN ANY OF THIS
+----------------------------------
+1. A Google Business Profile. Free, and it is what decides whether you appear
+   for "wedding photographer Victoria BC". Nothing on the website competes with
+   it for local searches.
+2. Being written about elsewhere. A link from a venue, a gallery, a wedding
+   blog or a news piece about a show does more than any tag.
+3. Words on the page. Search engines and AI assistants cannot read a
+   photograph. The prose under each image and on each service page is the
+   entire text they have to work with — every artwork description you write is
+   a page becoming findable.
+
+Set site.url in catalogue.js before publishing. Without it, canonical and
+sharing links cannot be absolute and several of these tags do nothing.

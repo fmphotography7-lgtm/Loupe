@@ -1,0 +1,23 @@
+PERSONAL ASSETS — KIRK'S OWN LICENCE, NOT PART OF STUDIOFLOW
+============================================================
+
+Black_Crush.otf
+  Black Crush (c) Figuree Studio, 2026. All Rights Reserved.
+  Designer: Icep Anwar fadhil.
+
+This font is NOT open-licence. It is here because Kirk licensed it for his own
+Frozen Moments price cards. Everything else in assets/fonts/ is SIL Open Font
+Licence and ships with the app; this folder does not.
+
+IF STUDIOFLOW IS EVER SOLD OR GIVEN TO ANYONE ELSE:
+  Run BUILD_FOR_DISTRIBUTION.bat instead of BUILD_DESKTOP_APP.bat. It moves this
+  whole folder out of the way, builds, and puts it back. Nothing here reaches
+  the installer.
+
+The app does not depend on it. With this folder gone, the Canada Day price cards
+fall back to Archivo Black, which is bundled under the Open Font Licence.
+
+NOTE FOR KIRK: a desktop font licence does not always cover embedding the font
+inside an application you distribute. That is usually a separate "app" licence.
+For your own use this is fine; before shipping StudioFlow to anyone, check the
+licence you bought, or swap the cards to one of the bundled faces.
