@@ -1,9 +1,0 @@
-window.SFProducts={
-  variantsFor(a){return Array.isArray(a.products)?a.products:[];},
-  buildFromSelections(a,selections){const existing=this.variantsFor(a);const imported=existing.filter(p=>p.source==='Squarespace');const templates=window.SFProductTemplates.ensure(window.SF.state);const midOf=p=>p.mediumId||templates.find(t=>t.name===p.medium)?.id||p.medium;const importedKeys=new Set(imported.map(p=>`${midOf(p)}|||${p.size}`));const generated=[];for(const [mediumId,sizes] of Object.entries(selections)){const t=templates.find(x=>x.id===mediumId);for(const size of sizes){if(importedKeys.has(`${mediumId}|||${size}`))continue;/* already sold via a live Squarespace variant -- don't add a duplicate StudioFlow copy */generated.push({id:window.SF.makeId('PRD'),medium:t?.name||mediumId,mediumId,size,price:window.SFPricing.priceFor(a,mediumId,size),sku:'',productId:'',variantId:'',visible:true,source:'StudioFlow'});}}a.products=this.dedupeVariants([...imported,...generated]);},
-  // Collapse duplicate medium+size variants down to one (e.g. copies left behind by an old
-  // ghost-merge that inflated a piece's variant count -- Endless Road showing 56 when it should be
-  // 32). Keep the copy that carries a live website link so nothing that's actually online is lost.
-  dedupeVariants(list){const templates=window.SFProductTemplates.ensure(window.SF.state);const midOf=p=>p.mediumId||templates.find(t=>t.name===p.medium)?.id||p.medium;const live=p=>!!(p.productId||p.squarespaceProductId||p.variantId||p.squarespaceVariantId);const seen=new Map();for(const p of (Array.isArray(list)?list:[])){const k=`${midOf(p)}|||${p.size}`;const cur=seen.get(k);if(!cur||(live(p)&&!live(cur)))seen.set(k,p);}return [...seen.values()];},
-  renderSummary(a){const vars=this.variantsFor(a);return `${vars.length} product${vars.length===1?'':'s'}`;}
-};

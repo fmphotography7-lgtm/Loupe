@@ -1,0 +1,91 @@
+LOUPE — HAND-OFF FOR THE STUDIOFLOW SITE UPLOAD
+===============================================
+Two packages accompany this note. They are separate products that share one
+codebase; neither replaces the other.
+
+  loupe-web.zip      -> upload to the website. Phones and desktops both.
+  loupe-desktop.zip  -> build into a Windows .exe / Mac .dmg for download.
+
+
+-------------------------------------------------------------------
+1. WHAT GOES ON THE WEBSITE
+-------------------------------------------------------------------
+Unzip loupe-web.zip and upload the CONTENTS of the loupe-web folder (not the
+folder itself) to a path on the site, e.g.  /loupe/
+
+  index.html
+  manifest.webmanifest
+  sw.js
+  icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png
+
+REQUIREMENTS
+  - Must be served over https, or installing and offline use will not work.
+  - The files must sit together in one directory. sw.js must be served from
+    the same directory as index.html or its scope will be wrong.
+  - No server-side anything. No database, no build step, no environment
+    variables. It is a static folder.
+
+WHAT THE VISITOR GETS
+  Android / Chrome  - an "Install" button appears in the app's own header
+  iPhone / Safari   - Share > Add to Home Screen (Apple provides no prompt)
+  Desktop           - an install icon in the browser address bar
+  Anyone            - it simply works as a web page without installing
+
+CACHE VERSION — THE ONE THING THAT WILL BITE
+  sw.js line 4:   const CACHE = 'loupe-v6';
+  Every time index.html changes, that number MUST go up. Phones hold the old
+  version until it does. This is the same class of problem as StudioFlow's
+  build marker.
+
+
+-------------------------------------------------------------------
+2. THE DESKTOP DOWNLOAD
+-------------------------------------------------------------------
+loupe-desktop.zip is an Electron project of the same shape as StudioFlow.
+
+  cd loupe-desktop
+  npm install
+  npm run build:win     ->  dist\Loupe Setup 1.0.0.exe
+  npm run build:mac     ->  dist/Loupe-1.0.0.dmg
+
+A Windows machine builds the .exe; a Mac builds the .dmg. Apple's toolchain
+does not run on Windows.
+
+The resulting installer is unsigned, so Windows shows "Windows protected
+your PC" and macOS shows "unidentified developer". Both are dismissible.
+Signing costs roughly $200-400/year for Windows; the Mac certificate comes
+with the $99/year Apple Developer Program.
+
+The web version has no warning at all, which is the argument for making it
+the front door and the installer the alternative.
+
+
+-------------------------------------------------------------------
+3. WHAT THE APP IS
+-------------------------------------------------------------------
+A single HTML file. No dependencies, no frameworks, no network calls. It
+reads a JPEG the user chooses and reports:
+
+  Exposure  histogram, clipping by channel, tonal range, 8-bit headroom
+  Focus     per-tile acuity map, focus plane, depth of field, motion hint
+  Frame     thirds, golden ratio, spiral, diagonals, triangles
+  Lens      which focal length to bring, from a phone test shot
+
+Photographs never leave the device. There is no analytics, no telemetry and
+no third-party script of any kind. That claim is a selling point and should
+not be broken by adding one later.
+
+CONFIGURATION — six lines at the top of index.html, marked with arrows:
+
+  const FM = {
+    name:      'Frozen Moments Photography',
+    line:      'West Coast landscapes, wildlife and fine art prints. Victoria, BC.',
+    site:      'https://www.fmphotography.ca',
+    siteLabel: 'fmphotography.ca',
+    photo:     '',   <- a URL to one photograph, for the banner tile
+    tipUrl:    'https://buymeacoffee.com/fmphotography'  (already set)
+  };
+
+Both blanks are safe to leave empty: with no photo the banner shows a
+gradient, and with no tipUrl the coffee card and support link do not render
+at all. Set the same values in BOTH packages.

@@ -1,142 +1,2855 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>StudioFlow 3.1.0</title>
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loupe — frame check</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="description" content="Check exposure, focus, composition and lens choice on your own photographs. Nothing is uploaded.">
+<meta name="theme-color" content="#0E0F11">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Loupe">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png">
+<style>
+:root{
+  --ink:#0E0F11;
+  --panel:#16171B;
+  --panel2:#1D1F25;
+  --line:#2B2E36;
+  --text:#E7E8EB;
+  --dim:#8B8F99;
+  --dimmer:#5F636D;
+  --gray18:#7C7C80;
+  --peak:#FF3D71;
+  --zebra:#FFC24B;
+  --cool:#57D4F0;
+  --ok:#6FD08C;
+  --display:'Barlow Condensed','Oswald','Roboto Condensed','Haettenschweiler','Arial Narrow',system-ui,sans-serif;
+  --body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:var(--ink);color:var(--text);font-family:var(--body);
+  font-size:14px;line-height:1.45;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--peak);outline-offset:2px}
+
+/* ---------- shell ---------- */
+#app{display:flex;flex-direction:column;height:100%;height:100dvh}
+
+header{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));
+  border-bottom:1px solid var(--line);background:var(--panel);flex:0 0 auto;
+}
+.wordmark{
+  font-family:var(--display);text-transform:uppercase;
+  font-size:22px;letter-spacing:.22em;font-weight:600;line-height:1;
+}
+.wordmark span{color:var(--peak)}
+.tag{font-family:var(--mono);font-size:10px;color:var(--dimmer);letter-spacing:.08em;text-transform:uppercase}
+header .spacer{flex:1}
+
+.btn{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;
+  font-size:13px;padding:7px 13px;border:1px solid var(--line);
+  background:var(--panel2);border-radius:2px;white-space:nowrap;
+}
+.btn:hover{border-color:var(--dimmer)}
+.btn.primary{background:var(--peak);border-color:var(--peak);color:#12070C;font-weight:600}
+
+/* ---------- main split ---------- */
+main{flex:1;display:flex;min-height:0}
+#stagewrap{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;position:relative}
+#stage{
+  flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;
+  background:
+    linear-gradient(0deg,rgba(0,0,0,.35),rgba(0,0,0,.35)),
+    repeating-conic-gradient(#191A1E 0% 25%, #141519 0% 50%) 50%/22px 22px;
+  overflow:hidden;
+}
+#frame{position:relative;line-height:0;box-shadow:0 0 0 1px var(--line),0 18px 50px rgba(0,0,0,.6)}
+#frame canvas{display:block;max-width:100%;touch-action:none}
+#base{position:relative;z-index:1}
+#over{position:absolute;inset:0;z-index:2}
+
+#drop{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:11px;text-align:center;padding:22px;
+  overflow-y:auto;overscroll-behavior:contain;z-index:8;
+  background:var(--ink);
+}
+@media (max-width:860px){
+  #drop{justify-content:flex-start;padding:26px 18px 30px;gap:9px}
+  #drop h2{font-size:21px}
+  #drop .pitch{font-size:13.5px}
+  .what li{grid-template-columns:88px 1fr;gap:10px;font-size:12px;padding:6px 0}
+  .what li b{font-size:11.5px;letter-spacing:.1em}
+  .logo.big{width:46px;height:46px}
+}
+#drop.hide{display:none}
+#app.noshot #read{display:none}
+#app.noshot #stage{flex:1 1 auto;height:auto}
+#app.noshot #chips{display:none}
+.logo{width:26px;height:26px;flex:0 0 auto;color:var(--text)}
+.logo.big{width:58px;height:58px;margin-bottom:2px}
+#drop .pitch{max-width:44ch;font-size:14px;color:var(--text)}
+#drop .fine{color:var(--dimmer);font-size:11.5px;max-width:40ch;margin:2px 0 0}
+.what{list-style:none;padding:0;margin:4px 0 6px;text-align:left;max-width:430px;width:100%}
+.what li{
+  display:grid;grid-template-columns:104px 1fr;gap:12px;align-items:baseline;
+  padding:7px 0;border-top:1px solid var(--line);font-size:12.5px;color:var(--dim);line-height:1.4;
+}
+.what li b{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.14em;
+  font-size:12.5px;color:var(--text);font-weight:600;
+}
+.purpose{
+  margin:10px 0 0;padding:11px 12px;background:var(--panel2);border-left:2px solid var(--peak);
+  font-size:13px;line-height:1.5;border-radius:0 2px 2px 0;
+}
+.purpose em{color:var(--text);font-style:italic}
+#drop h2{font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;font-size:19px;margin:0;font-weight:500}
+#drop p{color:var(--dim);max-width:34ch;margin:0;font-size:13px}
+#stage.dragging{background:#1F2128}
+
+#busy{
+  position:absolute;z-index:6;bottom:14px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
+  background:rgba(10,11,13,.9);border:1px solid var(--line);padding:6px 12px;border-radius:2px;
+  display:none;
+}
+#busy.on{display:block}
+
+#unzoom{
+  position:absolute;z-index:7;right:12px;bottom:12px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.04em;
+  background:rgba(14,15,17,.92);border:1px solid var(--line);color:var(--text);
+  padding:8px 12px;border-radius:2px;backdrop-filter:blur(6px);
+}
+#unzoom[hidden]{display:none}
+#unzoom:hover{border-color:var(--peak)}
+@media (max-width:860px){ #unzoom{right:9px;bottom:9px;padding:9px 13px;font-size:13px} }
+
+/* what the colours on the picture actually mean */
+#legend{
+  position:relative;background:var(--panel2);border-bottom:1px solid var(--line);
+  padding:13px 16px 14px;
+}
+#legend[hidden]{display:none}
+#legend h5{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;
+  font-size:12px;margin:0 0 6px;font-weight:600;color:var(--text);
+}
+#legend p{margin:0;font-size:12px;line-height:1.5;color:var(--dim)}
+#legend p + p{margin-top:6px}
+#legend b{color:var(--text);font-weight:600}
+#legend em{color:var(--text);font-style:italic}
+.ramp{height:9px;border-radius:2px;margin:8px 0 5px;
+  background:linear-gradient(90deg,rgb(22,34,78),rgb(46,96,196),rgb(128,86,150),rgb(238,72,62),rgb(61,220,132));}
+.ramp-ends{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dimmer);margin-bottom:7px}
+.swatch{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px}
+#legend .close{position:absolute;top:6px;right:8px;font-family:var(--mono);font-size:14px;color:var(--dimmer);padding:2px 5px;line-height:1}
+#legend .close:hover{color:var(--text)}
+@media (max-width:860px){
+  #legend{padding:11px 14px}
+  #legend p{font-size:12px}
+}
+.offscreen{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+
+/* ---------- overlay chips ---------- */
+#chips{
+  position:absolute;z-index:4;top:10px;left:10px;right:10px;
+  display:flex;gap:6px;flex-wrap:wrap;
+}
+@media (max-width:860px){
+  /* on a phone the picture is only half the screen — nothing may sit on top of it */
+  #chips{
+    position:static;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;
+    padding:7px 10px;gap:5px;background:var(--panel);border-bottom:1px solid var(--line);
+    -webkit-overflow-scrolling:touch;flex:0 0 auto;
+  }
+  #chips::-webkit-scrollbar{display:none}
+  .chip{backdrop-filter:none;background:var(--panel2)}
+}
+.chip{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;font-size:12px;
+  padding:5px 10px;border:1px solid var(--line);background:rgba(14,15,17,.86);
+  border-radius:2px;backdrop-filter:blur(6px);
+}
+.chip.on{background:var(--text);color:var(--ink);border-color:var(--text);font-weight:600}
+.chip.peakon{background:var(--peak);border-color:var(--peak);color:#12070C;font-weight:600}
+
+/* ---------- readouts ---------- */
+#read{
+  width:352px;flex:0 0 352px;border-left:1px solid var(--line);
+  background:var(--panel);overflow-y:auto;overscroll-behavior:contain;
+  padding-bottom:max(18px,env(safe-area-inset-bottom));
+}
+.card{border-bottom:1px solid var(--line);padding:16px 18px}
+.card h3{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.2em;
+  font-size:13px;margin:0 0 2px;font-weight:600;display:flex;align-items:baseline;gap:8px;
+}
+.card h3 em{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--dimmer);text-transform:none}
+
+.verdict{display:flex;gap:10px;align-items:flex-start;margin:12px 0 6px}
+.dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-top:5px;background:var(--dimmer)}
+.dot.good{background:var(--ok)}.dot.warn{background:var(--zebra)}.dot.bad{background:var(--peak)}
+.verdict p{margin:0;font-size:13.5px}
+.verdict b{font-weight:600}
+
+.rows{font-family:var(--mono);font-size:11.5px;margin-top:12px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:3.5px 0;border-top:1px solid rgba(255,255,255,.045)}
+.row span:first-child{color:var(--dim)}
+.row span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.row .hi{color:var(--zebra)}.row .lo{color:var(--cool)}.row .pk{color:var(--peak)}
+
+canvas.plot{width:100%;height:76px;display:block;background:var(--panel2);border:1px solid var(--line);margin-top:12px}
+canvas.strip{height:38px}
+
+.note{color:var(--dimmer);font-size:11.5px;margin:10px 0 0;line-height:1.5}
+.muted{color:var(--dim)}
+.empty{color:var(--dimmer);font-size:12.5px;margin:10px 0 0}
+
+.seg{display:flex;gap:4px;margin-top:12px;flex-wrap:wrap}
+.seg button{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;padding:5px 8px;
+  border:1px solid var(--line);background:var(--panel2);border-radius:2px;color:var(--dim);
+}
+.seg button.on{background:var(--text);color:var(--ink);border-color:var(--text)}
+
+/* composition fit bars */
+.fitrow{display:flex;align-items:center;gap:10px;padding:5px 0}
+.fitname{flex:0 0 118px;font-size:12px;color:var(--dim)}
+.fitbar{flex:1;height:5px;background:#26282F;border-radius:3px;overflow:hidden}
+.fitbar i{display:block;height:100%;background:linear-gradient(90deg,#4A5A6B,var(--zebra));border-radius:3px}
+.fitpct{flex:0 0 34px;text-align:right;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.seg.lenses button{font-family:var(--display);font-size:14px;letter-spacing:.08em;padding:9px 13px;color:var(--text)}
+.seg.lenses button.on{background:var(--peak);border-color:var(--peak);color:#12070C;font-weight:700}
+
+/* stars and the verdict */
+.stars{position:relative;display:inline-block;font-size:17px;letter-spacing:3px;line-height:1;vertical-align:-2px}
+.sback{color:#33363E}
+.sfill{position:absolute;left:0;top:0;overflow:hidden;white-space:nowrap;color:var(--zebra)}
+.sdim{color:var(--dimmer);font-size:11px;letter-spacing:.04em}
+.scoreline{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.045)}
+.scoreline b{font-family:var(--display);text-transform:uppercase;letter-spacing:.14em;font-size:13px;font-weight:600}
+.scoreline .num{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:34px;text-align:right}
+.overall{display:flex;align-items:center;gap:14px;margin:4px 0 14px}
+.overall .big{font-family:var(--display);font-size:40px;line-height:.9;font-weight:600}
+.overall .stars{font-size:20px}
+.lst{list-style:none;padding:0;margin:8px 0 0}
+.lst li{position:relative;padding-left:20px;margin-bottom:7px;font-size:13px;line-height:1.45}
+.lst li:before{position:absolute;left:0;top:0;font-family:var(--mono);font-size:12px}
+.lst.good li:before{content:'✓';color:var(--ok)}
+.lst.habits li:before{content:'◆';color:var(--cool)}
+.lst.todo li:before{content:'→';color:var(--zebra)}
+.lst.todo b{display:block;font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:600;margin-bottom:1px}
+.lst .field{display:block;margin-top:5px;padding-left:9px;border-left:2px solid var(--zebra);color:var(--dim);font-size:12.5px;line-height:1.5}
+.lst .field em{font-style:normal;color:var(--zebra);font-weight:600}
+.subh{font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--dim);margin:18px 0 2px;font-weight:600}
+
+/* the maker's mark — quiet, always there, never in the way */
+#colophon{border-top:1px solid var(--line);background:var(--ink)}
+.mark{display:flex;gap:13px;align-items:center;padding:15px 18px;text-decoration:none;color:inherit}
+.mark:hover .mark-go{color:var(--peak)}
+.mark-pic{
+  width:76px;height:51px;flex:0 0 auto;border-radius:2px;overflow:hidden;
+  border:1px solid var(--line);background:
+    linear-gradient(170deg,#3E5A6B 0%,#5E7C82 34%,#8FA08C 52%,#2B3339 53%,#171C20 100%);
+}
+.mark-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.mark-txt{min-width:0}
+.mark-name{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.15em;
+  font-size:13px;font-weight:600;line-height:1.2;
+}
+.mark-line{color:var(--dim);font-size:11.5px;line-height:1.35;margin-top:3px}
+.mark-go{font-family:var(--mono);font-size:10px;color:var(--dimmer);letter-spacing:.02em;margin-top:5px;display:block;word-break:break-word;line-height:1.3}
+.mark-support{
+  display:block;padding:0 18px 15px;font-family:var(--mono);font-size:10.5px;
+  color:var(--dimmer);text-decoration:none;letter-spacing:.03em;
+}
+.mark-support:hover{color:var(--dim)}
+
+/* the coffee card — inline, dismissible, shows once */
+#coffee{margin:16px 18px 4px;border:1px solid var(--line);border-radius:3px;background:var(--panel2);padding:15px 16px}
+#coffee h4{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;
+  font-size:13px;margin:0 0 7px;font-weight:600;
+}
+#coffee p{margin:0;font-size:13px;color:var(--text)}
+#coffee .cbtns{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}
+#coffee a.cta{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:13px;
+  padding:8px 15px;background:var(--zebra);color:#20170A;border-radius:2px;
+  text-decoration:none;font-weight:700;
+}
+#coffee button.no{
+  font-family:var(--mono);font-size:11px;color:var(--dimmer);padding:8px 6px;
+}
+#coffee button.no:hover{color:var(--dim)}
+
+/* review before sorting */
+#review{
+  position:fixed;inset:0;z-index:40;background:var(--ink);
+  display:flex;flex-direction:column;
+  padding-top:max(0px,env(safe-area-inset-top));
+}
+#review[hidden]{display:none}
+.rv-head{
+  display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+  padding:15px 18px 11px;border-bottom:1px solid var(--line);
+}
+.rv-head h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.18em;font-size:16px;margin:0;font-weight:600}
+.rv-head p{margin:3px 0 0;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.rv-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.rv-thresh{font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.rv-thresh select{background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:6px 7px;border-radius:2px;font:inherit}
+.rv-note{margin:0;padding:10px 18px;font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);background:var(--panel)}
+#rvGrid{
+  flex:1;overflow-y:auto;padding:14px 18px 26px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;
+  padding-bottom:max(26px,env(safe-area-inset-bottom));
+}
+.rv-item{border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--panel);cursor:pointer;text-align:left}
+.rv-item img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;background:#000}
+.rv-item .rv-meta{padding:7px 9px 9px}
+.rv-item .rv-name{font-family:var(--mono);font-size:10px;color:var(--dimmer);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.rv-item .rv-score{font-family:var(--display);font-size:17px;letter-spacing:.06em;font-weight:600;margin-top:2px;display:block}
+.rv-item .rv-tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:3px;display:block}
+.rv-item.keep{border-color:rgba(111,208,140,.75)}
+.rv-item.keep .rv-tag{color:var(--ok)}
+.rv-item.drop{border-color:rgba(255,61,113,.6)}
+.rv-item.drop img{opacity:.4}
+.rv-item.drop .rv-tag{color:var(--peak)}
+.rv-item.over .rv-tag:after{content:' · your call';color:var(--zebra)}
+
+/* cull bar + scored filmstrip */
+#cullbar{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  padding:8px 12px;border-top:1px solid var(--line);background:var(--panel);
+}
+#cullbar[hidden]{display:none}
+#cullbar .btn{font-size:12px;padding:6px 11px}
+.cullnote{color:var(--dimmer);font-size:11.5px}
+.cullstat{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.cullstat b{color:var(--text);font-size:12px}
+.cullstat.strongtxt b{color:var(--ok)}
+.cullstat.weaktxt b{color:var(--peak)}
+.cullspacer{flex:1}
+#strip img.weak{border-color:var(--peak);opacity:.42}
+#strip img.strong{border-color:var(--ok)}
+#strip .wrap{position:relative;flex:0 0 auto;line-height:0}
+
+/* filmstrip */
+#strip{
+  flex:0 0 auto;display:flex;gap:6px;padding:8px 10px;overflow-x:auto;
+  border-top:1px solid var(--line);background:var(--panel);
+  padding-bottom:max(8px,env(safe-area-inset-bottom));
+}
+#strip:empty{display:none}
+#strip img{
+  height:48px;width:auto;border:1px solid var(--line);opacity:.5;cursor:pointer;flex:0 0 auto;
+  border-radius:1px;
+}
+#strip img.on{opacity:1;border-color:var(--peak)}
+
+/* mobile */
+#tabs{
+  display:flex;position:sticky;top:0;z-index:6;
+  background:var(--panel);border-bottom:1px solid var(--line);
+}
+#tabs button{
+  flex:1;padding:12px 3px;font-family:var(--display);text-transform:uppercase;
+  letter-spacing:.09em;font-size:12px;color:var(--dim);
+  border-bottom:2px solid transparent;white-space:nowrap;
+}
+#tabs button:hover{color:var(--text)}
+#tabs button.on{color:var(--text);border-bottom-color:var(--peak)}
+.card{display:none}
+.card.show{display:block}
+@media (max-width:860px){
+  main{flex-direction:column}
+  #stagewrap{flex:0 0 auto}
+  #stage{flex:0 0 auto;height:min(46vh,46dvh)}
+  #app.noshot #stage{flex:1 1 auto;height:auto;min-height:0}
+  #read{width:auto;flex:1;border-left:none;border-top:1px solid var(--line);min-height:0}
+  #tabs button{padding:11px 2px;letter-spacing:.05em;font-size:11px}
+  header{padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top))}
+  .wordmark{font-size:19px}
+  .tag{display:none}
+  #chips{top:8px;left:8px;right:8px}
+  .chip{font-size:11px;padding:4px 8px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
-<div class="app-shell sf8-shell">
-  <aside class="sidebar sf8-sidebar">
-    <div class="brand sf8-brand">
-      <img src="assets/studioflow-metal-logo.png" class="studioflow-metal-logo" alt="StudioFlow metallic SF logo">
-      <div class="brand-copy sf8-brand-copy">
-        <strong>STUDIOFLOW</strong>
-        <small>CREATE. DESIGN. FLOW.</small>
-      </div>
-      <button id="sidebarToggle" class="sidebar-toggle" type="button" title="Collapse sidebar" aria-label="Collapse sidebar">‹</button>
+<div id="app">
+
+<header>
+  <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/><circle cx="20" cy="20" r="9" fill="none" stroke="var(--peak)" stroke-width="2.2"/><g stroke="var(--peak)" stroke-width="2.2" stroke-linecap="round"><path d="M20 2.5v4M20 33.5v4M2.5 20h4M33.5 20h4"/></g></svg>
+  <div class="wordmark">Lou<span>p</span>e</div>
+  <div class="tag">frame check</div>
+  <div class="spacer"></div>
+  <button class="btn" id="btnRes" title="How closely Loupe looks. Quick scan reads a 1700px version — fine for exposure, framing and finding the focus plane. Full detail reads 3200px, slower, and is the only setting that can judge critical sharpness.">Quick scan</button>
+  <button class="btn" id="btnInstall" hidden>Install</button>
+  <button class="btn" id="btnFolder" hidden>Folder</button>
+  <button class="btn primary" id="btnOpen">Photos</button>
+  <input type="file" id="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif" multiple class="offscreen">
+  <input type="file" id="fileDir" webkitdirectory directory multiple class="offscreen">
+</header>
+
+<main>
+  <div id="stagewrap">
+  <div id="chips" hidden>
+      <button class="chip" data-ov="focusmap">Focus map</button>
+      <button class="chip" data-ov="peaking">Peaking</button>
+      <button class="chip" data-ov="peakmark">Sharpest point</button>
+      <button class="chip" data-ov="clip">Clipping</button>
+      <button class="chip" data-ov="thirds">Thirds</button>
+      <button class="chip" data-ov="phi">Golden ratio</button>
+      <button class="chip" data-ov="spiral">Spiral</button>
+      <button class="chip" data-ov="diag">Diagonals</button>
+      <button class="chip" data-ov="tri">Triangles</button>
+      <button class="chip" data-ov="lens">Lens</button>
+      <button class="chip" id="chipAll" hidden>All lenses</button>
+      <button class="chip" id="cyc" hidden>Rotate ⟳</button>
     </div>
-    <nav id="navigation" class="sf8-navigation"></nav>
-
-    <div class="sidebar-footer sf8-sidebar-footer">
-      <div class="sf8-version">StudioFlow 4.0 · build g209</div>
-      <small>© 2026 StudioFlow</small>
-      <div class="sf8-workspace-state"><span class="online-dot"></span><span>Local workspace ready</span></div>
+  <div id="stage">
+    <div id="frame" hidden>
+      <canvas id="base"></canvas>
+      <canvas id="over"></canvas>
     </div>
-  </aside>
 
-  <main class="main-area sf8-main">
-    <header class="topbar sf8-topbar">
-      <div class="sf8-page-heading">
-        <small id="eyebrow">STUDIOFLOW</small>
-        <h1 id="pageTitle">Home Dashboard</h1>
+
+    <div id="drop">
+      <svg class="logo big" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/><circle cx="20" cy="20" r="9" fill="none" stroke="var(--peak)" stroke-width="2.2"/><g stroke="var(--peak)" stroke-width="2.2" stroke-linecap="round"><path d="M20 2.5v4M20 33.5v4M2.5 20h4M33.5 20h4"/></g></svg>
+      <h2 id="dropTitle">Is this frame good enough?</h2>
+      <p class="pitch">Open a photograph and Loupe measures the four things that decide it — then tells you what to change.</p>
+
+      <ul class="what">
+        <li><b>Exposure</b>Whether you've lost the highlights or blocked the shadows, and by how much</li>
+        <li><b>Sharpness</b>Where focus actually landed, and how deep it runs</li>
+        <li><b>Composition</b>Which structure the frame is built on — thirds, spiral, diagonals</li>
+        <li><b>Lens</b>Shoot a phone test frame and see which lens to bring back</li>
+      </ul>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+        <button class="btn primary" id="btnOpen2">Choose photos</button>
+        <button class="btn" id="btnFolder2" hidden>Whole folder</button>
       </div>
+      <p class="fine">JPEGs. Nothing is uploaded — every measurement happens on this device.</p>
+    </div>
 
-      <section id="businessBanner" class="business-banner sf8-business-banner">
-        <img id="businessBannerLogo" class="business-banner-logo hidden" alt="Business logo">
-        <div class="sf8-business-copy">
-          <div id="businessBannerName" class="business-banner-name">Your Photography Business</div>
-          <small>Fine Art Photography Workspace</small>
-        </div>
-      </section>
+    <button id="unzoom" hidden title="Back to fit">⤢ <span id="zoomlbl">1.0×</span></button>
+    <div id="busy">Reading…</div>
+  </div>
+  </div>
 
-      <div class="top-actions sf8-top-actions">
-        <button class="sf8-icon-button" id="topAddArtwork" title="Add artwork" aria-label="Add artwork">＋</button>
-        <button class="button sf8-export-button" id="topBackup">Export Backup</button>
-      </div>
-    </header>
+  <section id="read">
+    <div id="legend" hidden></div>
+    <nav id="tabs">
+      <button class="on" data-tab="verdict">Verdict</button>
+      <button data-tab="exposure">Exposure</button>
+      <button data-tab="focus">Focus</button>
+      <button data-tab="frame">Frame</button>
+      <button data-tab="lens">Lens</button>
+    </nav>
 
-    <section id="workspace" class="sf8-workspace"></section>
-  </main>
+    <div class="card show" data-tab="verdict">
+      <h3>Verdict <em>how close you are</em></h3>
+      <div id="verBody"><p class="empty">Open a frame to measure it.</p></div>
+    </div>
+
+    <div class="card" data-tab="exposure">
+      <h3>Exposure <em>tone &amp; clipping</em></h3>
+      <div id="expBody"><p class="empty">Open a frame to measure it.</p></div>
+    </div>
+
+    <div class="card" data-tab="focus">
+      <h3>Focus <em>acuity &amp; depth of field</em></h3>
+      <div id="focBody"><p class="empty">Open a frame to measure it.</p></div>
+    </div>
+
+    <div class="card" data-tab="frame">
+      <h3>Frame <em>where the eye lands</em></h3>
+      <div id="cmpBody"><p class="empty">Open a frame to measure it.</p></div>
+    </div>
+
+    <div class="card" data-tab="lens">
+      <h3>Lens <em>what to shoot it with</em></h3>
+      <div id="lenBody"><p class="empty">Open a frame to measure it.</p></div>
+    </div>
+    <div id="colophon"></div>
+  </section>
+</main>
+
+<div id="review" hidden>
+  <div class="rv-head">
+    <div>
+      <h3>Review before sorting</h3>
+      <p id="rvCount"></p>
+    </div>
+    <div class="rv-actions">
+      <label class="rv-thresh">Keep at or above
+        <select id="rvThresh">
+          <option value="1.5">1.5</option>
+          <option value="2">2.0</option>
+          <option value="2.5" selected>2.5</option>
+          <option value="3">3.0</option>
+          <option value="3.5">3.5</option>
+        </select>
+      </label>
+      <button class="btn" id="rvCsv">Download list</button>
+      <button class="btn primary" id="rvExport">Sort into folders</button>
+      <button class="btn" id="rvClose">Close</button>
+    </div>
+  </div>
+  <p class="rv-note">Loupe never deletes anything. It copies your frames into two new folders and leaves the originals exactly where they are. Tap any frame to overrule its verdict.</p>
+  <div id="rvGrid"></div>
 </div>
 
-<div id="modalRoot"></div>
+<div id="cullbar" hidden></div>
+<div id="strip"></div>
+</div>
 
-<script src="modules/core.js"></script>
-<script src="modules/dashboard.js"></script>
-<script src="modules/website-manager.js"></script>
-<script src="modules/website-connection.js"></script>
-<script src="modules/inventory-sales.js"></script>
-<script src="modules/sales-engine.js"></script>
-<script src="modules/product-templates.js"></script>
-<script src="modules/pricing.js"></script>
-<script src="modules/unified-pricing.js"></script>
-<script src="modules/product-manager.js"></script>
-<script src="modules/squarespace-importer.js"></script>
-<script src="modules/artworks.js"></script>
-  <script src="modules/qr.js"></script>
-  <script src="modules/label-core.js"></script>
-  <script src="modules/label-ui.js"></script>
-  <script src="modules/venue-commission.js"></script>
-<script src="modules/artwork-timeline.js"></script>
-<script src="modules/limited-editions.js"></script>
-<script src="modules/business-intelligence.js"></script>
-<script src="modules/commerce-hub.js"></script>
-<script src="modules/production-workspace.js"></script>
-<script src="modules/website-updates.js"></script>
-<script src="modules/squarespace-service.js"></script>
-  <script src="modules/platform-adapter.js"></script>
-<script src="modules/production-service.js"></script>
-<script src="modules/analytics-service.js"></script>
-<script src="modules/inventory-service.js"></script>
-<script src="modules/product-service.js"></script>
-<script src="modules/materials-service.js"></script>
-<script src="modules/markets-shows.js"></script>
-<script src="modules/calendar-engine.js"></script>
-<script src="modules/build-11.5.6.js"></script>
-<script src="modules/build-11.6.0.js"></script>
-<script src="modules/build-11.6.1.js"></script>
-<script src="modules/materials-cutting.js"></script>
-<script src="modules/ink-cost-engine.js"></script>
-<script src="modules/ai-printing-assistant.js"></script>
-<script src="modules/galleries.js"></script>
-<script src="modules/product-health.js"></script>
-<script src="modules/website-dashboard.js"></script>
-<script src="modules/asset-manager.js"></script>
-<script src="modules/asset-importer.js"></script>
-<script src="modules/scenes.js"></script>
-<script src="modules/scene-wizard.js"></script>
-<script src="modules/wall-perspective.js"></script>
-  <script src="modules/calibration.js"></script>
-<script src="modules/photo-cull.js"></script>
-<script src="modules/crop-tool.js"></script>
-<script src="modules/frame-library.js"></script>
-<script src="modules/room-designer.js"></script>
-<script src="modules/ai-art-creation.js"></script>
-<script src="modules/ai-room-generator.js"></script>
-<script src="modules/website-export.js"></script>
-  <script src="modules/client-galleries.js"></script>
-  <script src="modules/prepare-upload.js"></script>
-<script src="modules/room-projects.js"></script>
-<script src="modules/settings.js"></script>
-<script src="modules/build-12.0.3.js"></script>
-<script src="modules/build-12.0.4.js"></script>
-<script src="modules/build-12.0.5.js"></script>
-<script src="modules/build-12.0.6.js"></script>
-<script src="modules/build-12.1.0.js"></script>
-<script src="modules/cleanup-metallic-medium.js"></script>
-<script src="modules/build-12.1.2.js"></script>
-<script src="modules/build-3.0.0.js"></script>
-<script src="renderer.js"></script>
-<!-- render-engine-core.js removed: it monkey-patched draw() and finishedSize() with its own
-     normalizeModel() step that force-clamps imageWidth/matWidth/frameWidth/scale/rotation/
-     perspective/zoom/x/y to its own fixed ranges on every single redraw, and separately
-     recomputed and re-clamped placement x/y against its own bounds calculation. This is what
-     was causing sliders and controls to appear to silently revert after being changed -- the
-     wrapped draw() call kept re-applying its own limits on top of whatever room-designer.js
-     had just set. Nothing else in the app reads window.SFRenderEngine. -->
-<script src="modules/sales-rollup.js"></script>
-<script src="modules/forecast.js"></script>
-<script src="modules/print-log.js"></script>
-<script src="modules/packlist.js"></script>
-<script src="modules/price-cards.js"></script>
-  <script src="modules/invoices.js"></script>
-<script src="modules/intelligence.js"></script>
-  <script src="modules/price-watch.js"></script>
-<!-- <script src="modules/render-engine-core.js"></script> -->
-<!-- presentation-renderer-3.5.0.js removed: it monkey-patched draw() to override every cast/contact/inner
-     shadow style with its own older, independent positioning math via !important on every single frame,
-     which is why shadow fixes in room-designer.js/styles.css were never actually taking visual effect. -->
+<script>
+'use strict';
+
+/* ============================================================
+   ▼▼▼ EDIT THESE SEVEN LINES — nothing else in this file ▼▼▼
+   ============================================================ */
+const FM = {
+  name:      'Frozen Moments Photography',
+  line:      'Free tools, courses and fine art prints. West Coast landscapes from Victoria, BC.',
+  site:      'https://www.fmphotography.ca/free-photo-tools',
+  siteLabel: 'fmphotography.ca/free-photo-tools',
+  photo:     './banner.jpg',   // optional: paste a link to one of your photographs
+  tipUrl:    'https://buymeacoffee.com/fmphotography',
+  feedback:  'fmphotography7@gmail.com'
+};
+/* ============================================================
+   ▲▲▲ EDIT THESE SEVEN LINES — nothing else in this file ▲▲▲
+
+   LOUPE — a frame-check prototype.
+   Everything runs locally: no network, no uploads.
+   Three engines: exposure(), focus(), composition readout.
+   ============================================================ */
+
+const PHI = 1.6180339887;
+const $ = s => document.querySelector(s);
+
+const State = {
+  shots: [],        // {name, url, bmp, result}
+  idx: -1,
+  res: 'fast',      // fast | critical
+  overlays: new Set(),
+  orient: 0,        // spiral / triangle orientation 0..3
+  subject: null,    // {x,y,w,h} in 0..1 frame coords
+  ref: loadRef(),
+  // lens simulation
+  format: 'ff',
+  formatManual: false,
+  kind: 'unknown',
+  shotMM: null,
+  lensMM: 85,
+  lensAll: false,   // show every focal length at once
+  showPeak: false,  // the sharpest-region marker, off unless asked for
+  thresh: 2.5,      // score at or above which a frame is kept
+  fstop: 2.8,
+  dist: 5,
+  aspect: 3/2,
+  phoneEq: 26,      // 35mm equivalent this test shot was actually taken at
+  phoneBase: loadNum('loupe.base', 26),   // the phone's MAIN (1×) camera, remembered
+  zoom: 1,          // which camera / zoom setting the shot came from
+  zoomManual: false,
+  eqSource: 'assumed',   // exif | zoom | manual | assumed
+  digitalZoom: 1,
+  lensBox: null     // {cx,cy} centre of the simulated frame, 0..1
+};
+
+function loadRef(){ try{ const v=localStorage.getItem('loupe.ref'); return v?parseFloat(v):null; }catch(e){ return null; } }
+function loadNum(k,d){ try{ const v=localStorage.getItem(k); return v?parseFloat(v):d; }catch(e){ return d; } }
+function saveNum(k,v){ try{ localStorage.setItem(k,String(v)); }catch(e){} }
+function saveRef(v){ State.ref=v; try{ localStorage.setItem('loupe.ref', String(v)); }catch(e){} }
+
+/* ------------------------------------------------------------
+   1. EXPOSURE
+   Histogram, clipping by channel, percentile spread.
+   Measured on a downsample — tone statistics survive scaling.
+------------------------------------------------------------ */
+function exposure(px, n){
+  const L = new Uint32Array(256), R = new Uint32Array(256), G = new Uint32Array(256), B = new Uint32Array(256);
+  let clipAll=0, clipR=0, clipG=0, clipB=0, crush=0;
+
+  for(let i=0;i<n;i++){
+    const o=i*4, r=px[o], g=px[o+1], b=px[o+2];
+    // Rec.709 luma, matching how a camera's luminance histogram is weighted
+    const l = (0.2126*r + 0.7152*g + 0.0722*b) | 0;
+    L[l]++; R[r]++; G[g]++; B[b]++;
+    if(r>=253) clipR++;
+    if(g>=253) clipG++;
+    if(b>=253) clipB++;
+    if(r>=253 && g>=253 && b>=253) clipAll++;
+    if(r<=2 && g<=2 && b<=2) crush++;
+  }
+
+  const pct = p => {
+    const target = n * p / 100; let acc = 0;
+    for(let i=0;i<256;i++){ acc += L[i]; if(acc >= target) return i; }
+    return 255;
+  };
+  let sum=0; for(let i=0;i<256;i++) sum += i*L[i];
+
+  const e = {
+    L,R,G,B,
+    mean: sum/n,
+    p1:pct(1), p5:pct(5), p50:pct(50), p95:pct(95), p99:pct(99),
+    clipAll: 100*clipAll/n,
+    clipR: 100*clipR/n, clipG: 100*clipG/n, clipB: 100*clipB/n,
+    crush: 100*crush/n
+  };
+  e.spread = e.p99 - e.p1;
+  e.chanClip = Math.max(e.clipR, e.clipG, e.clipB);
+  e.chanName = e.chanClip===e.clipR ? 'red' : e.chanClip===e.clipG ? 'green' : 'blue';
+
+  // Verdict — ordered by what actually costs you the print
+  // Verdict thresholds are set for JPEG, where what you see is all there is:
+  // a clipped pixel has nothing behind it, and every lift is spent out of
+  // 256 levels rather than a raw file's several thousand.
+  const parts = [];
+  let level = 'good', head = 'Well exposed';
+
+  if(e.clipAll > 1){ level='bad'; head='Highlights are gone';
+    parts.push(`${e.clipAll.toFixed(1)}% of the frame is pure white in all three channels. In a JPEG that detail no longer exists — pulling the highlight slider back will only make it grey.`); }
+  else if(e.clipAll > 0.15){ level='warn'; head='Highlights on the edge';
+    parts.push(`${e.clipAll.toFixed(2)}% is fully clipped. Fine if that's sun or specular water; a problem if it's cloud, snow or skin, and it can't be brought back at this stage.`); }
+  else if(e.chanClip > 1.5 && e.chanClip > e.clipAll*3){ level='warn'; head=`The ${e.chanName} channel is clipping`;
+    parts.push(`${e.chanClip.toFixed(1)}% of pixels max out in ${e.chanName} while luminance still looks safe. This is what flattens sunset colour and reddens skin, and it is already baked into the file.`); }
+
+  if(e.crush > 1.5){
+    if(level==='good'){ level='warn'; head='Shadows are blocked up'; }
+    parts.push(`${e.crush.toFixed(1)}% of the frame is pure black with no separation left in it.`);
+  }
+
+  if(level==='good'){
+    const lift = Math.log2(235/Math.max(e.p95,1));
+    if(e.p95 < 175 && e.mean < 85){ level='warn'; head='Underexposed';
+      parts.push(`The brightest real tone sits at ${e.p95}/255. Lifting this to a normal exposure costs about ${lift.toFixed(1)} stops, and an 8-bit file stretched that far shows banding in skies and noise in shadows. Better to reshoot it brighter than to fix it.`); }
+    else if(e.spread < 110){ level='warn'; head='Flat — low contrast';
+      parts.push(`Tones only span ${e.spread} of 255 levels. You can add contrast in post, but stretching ${e.spread} levels across the full range thins them out and can posterise smooth gradients.`); }
+    else if(e.p95 > 240 && e.clipAll < 0.15){
+      parts.push('Pushed right to the top of the range without losing anything — as much tone as this file can hold.'); }
+    else{
+      parts.push('Tones fill the range with no meaningful clipping at either end.'); }
+  }
+  e.level = level; e.head = head; e.text = parts.join(' ');
+  return e;
+}
+
+/* ------------------------------------------------------------
+   2. FOCUS
+   Per-tile acuity. The trick for depth of field: measure the
+   RATIO of high-frequency energy to gradient energy, not raw
+   sharpness. Contrast cancels out, so a dark bokeh background
+   and a bright sharp subject are compared on even ground.
+     energy  = how much detail is here at all
+     acuity  = how crisply that detail is rendered
+------------------------------------------------------------ */
+function focus(px, w, h){
+  const n = w*h;
+  const g = new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const o=i*4;
+    g[i] = 0.2126*px[o] + 0.7152*px[o+1] + 0.0722*px[o+2];
+  }
+
+  const COLS = Math.max(12, Math.min(40, Math.round(w/44)));
+  const ROWS = Math.max(8,  Math.round(COLS*h/w));
+  const tw = w/COLS, th = h/ROWS, tn = COLS*ROWS;
+
+  const sLap = new Float64Array(tn), sGrad = new Float64Array(tn);
+  const sGx = new Float64Array(tn), sGy = new Float64Array(tn), cnt = new Uint32Array(tn);
+
+  for(let y=1;y<h-1;y++){
+    const ty = (y/th)|0;
+    for(let x=1;x<w-1;x++){
+      const i = y*w+x;
+      const l = g[i-1], r = g[i+1], u = g[i-w], d = g[i+w];
+      const lap = l + r + u + d - 4*g[i];      // second derivative: fine detail
+      const gx  = r - l, gy = d - u;           // first derivative: any edge
+      const t = ty*COLS + ((x/tw)|0);
+      sLap[t]  += lap*lap;
+      sGrad[t] += gx*gx + gy*gy;
+      sGx[t]   += Math.abs(gx);
+      sGy[t]   += Math.abs(gy);
+      cnt[t]++;
+    }
+  }
+
+  const acuity = new Float32Array(tn), energy = new Float32Array(tn);
+  let maxE = 0;
+  for(let t=0;t<tn;t++){
+    const c = cnt[t] || 1;
+    energy[t] = Math.sqrt(sGrad[t]/c);
+    if(energy[t] > maxE) maxE = energy[t];
+  }
+  const floor = Math.max(2.2, maxE*0.10);      // below this a tile is plain sky/wall, not soft
+  let peak = 0, peakT = -1, valid = 0;
+  for(let t=0;t<tn;t++){
+    if(energy[t] < floor){ acuity[t] = -1; continue; }
+    const c = cnt[t] || 1;
+    acuity[t] = Math.sqrt(sLap[t]/c) / (energy[t] + 1e-4);
+    valid++;
+    if(acuity[t] > peak){ peak = acuity[t]; peakT = t; }
+  }
+
+  // Where the plane of focus sits.
+  // A plain centroid of every near-sharp tile is WRONG when sharpness is
+  // split — a crisp tree on the left and a crisp shoreline on the right
+  // average out to a marker floating on empty water between them. So:
+  // group the near-sharp tiles into connected REGIONS, keep the heaviest
+  // one, and mark the centre of that. If a second region is nearly as
+  // strong, say so rather than quietly picking one.
+  const cut = peak*0.78;
+  const hot = new Uint8Array(tn);
+  let inFocus = 0;
+  for(let t=0;t<tn;t++){
+    if(acuity[t] >= 0 && acuity[t] >= cut){ hot[t]=1; inFocus++; }
+  }
+  const frac = valid ? inFocus/valid : 0;
+
+  const label = new Int32Array(tn).fill(-1);
+  const regions = [];
+  const stack = [];
+  for(let seed=0; seed<tn; seed++){
+    if(!hot[seed] || label[seed] >= 0) continue;
+    const id = regions.length;
+    let wsumR=0, cxR=0, cyR=0, n=0;
+    stack.length = 0; stack.push(seed); label[seed] = id;
+    while(stack.length){
+      const t = stack.pop();
+      const col = t%COLS, row = (t/COLS)|0;
+      const wgt = acuity[t]-cut+0.001;
+      cxR += (col+0.5)/COLS * wgt;
+      cyR += (row+0.5)/ROWS * wgt;
+      wsumR += wgt; n++;
+      const nb = [];
+      if(col>0) nb.push(t-1);
+      if(col<COLS-1) nb.push(t+1);
+      if(row>0) nb.push(t-COLS);
+      if(row<ROWS-1) nb.push(t+COLS);
+      for(const u of nb) if(hot[u] && label[u]<0){ label[u]=id; stack.push(u); }
+    }
+    regions.push({w:wsumR, x:cxR/wsumR, y:cyR/wsumR, tiles:n});
+  }
+  regions.sort((a,b)=>b.w-a.w);
+  const main = regions[0] || {x:.5, y:.5, w:0, tiles:0};
+  const rival = regions[1] || null;
+
+  // Directional hint. Motion along an axis destroys detail across it.
+  let ax=0, ay=0, ac=0;
+  for(let t=0;t<tn;t++){ if(acuity[t] >= cut){ ax += sGx[t]/(cnt[t]||1); ay += sGy[t]/(cnt[t]||1); ac++; } }
+  const aniso = ac ? Math.max(ax,ay)/Math.max(1e-4,Math.min(ax,ay)) : 1;
+  const anisoDir = ax > ay ? 'horizontal' : 'vertical';
+
+  const f = {
+    COLS, ROWS, acuity, energy, peak, peakT, frac, valid, aniso, anisoDir,
+    regions: regions.length,
+    split: !!(rival && rival.w > main.w*0.55),
+    rivalX: rival ? rival.x : null, rivalY: rival ? rival.y : null,
+    focusX: main.x, focusY: main.y,
+    peakX: peakT>=0 ? ((peakT%COLS)+0.5)/COLS : .5,
+    peakY: peakT>=0 ? (((peakT/COLS)|0)+0.5)/ROWS : .5
+  };
+
+  // Horizon tilt. Local edge ORIENTATION is useless here — on a crisp edge it
+  // snaps to the pixel grid and a 2 degree tilt reads as 0. So instead: find the
+  // strongest horizontal edge in each column, to sub-pixel accuracy, then fit a
+  // line through those points and reject whatever doesn't sit on it.
+  {
+    const xs=[], ys=[], ws=[];
+    for(let x=2;x<w-2;x+=2){
+      let best=0, by=-1;
+      for(let y=3;y<h-3;y++){
+        const i=y*w+x;
+        const d=Math.abs(g[i+w]-g[i-w]);
+        if(d>best){ best=d; by=y; }
+      }
+      if(by<0 || best<14) continue;
+      // parabolic interpolation around the peak buys us sub-pixel precision,
+      // which is the whole game for shallow angles
+      const i=by*w+x;
+      const a1=Math.abs(g[i-w+w]-g[i-w-w]), b1=best, c1=Math.abs(g[i+w+w]-g[i+w-w]);
+      const den=(a1-2*b1+c1);
+      const sub = den ? 0.5*(a1-c1)/den : 0;
+      xs.push(x); ys.push(by + (Math.abs(sub)<1?sub:0)); ws.push(best);
+    }
+
+    let angle=0, strength=0, ok=false;
+    if(xs.length >= 12){
+      const fit = (idx) => {
+        let sw=0,sx=0,sy=0,sxx=0,sxy=0;
+        for(const k of idx){ const wt=ws[k]; sw+=wt; sx+=wt*xs[k]; sy+=wt*ys[k]; sxx+=wt*xs[k]*xs[k]; sxy+=wt*xs[k]*ys[k]; }
+        const den = sw*sxx - sx*sx;
+        if(!den) return null;
+        const m = (sw*sxy - sx*sy)/den, c = (sy - m*sx)/sw;
+        return {m,c};
+      };
+      let idx = xs.map((_,k)=>k);
+      let f1 = fit(idx);
+      if(f1){
+        // throw out everything far from the first fit, then fit again
+        const res = idx.map(k=>Math.abs(ys[k]-(f1.m*xs[k]+f1.c)));
+        const sorted=[...res].sort((a,b)=>a-b);
+        const med = sorted[sorted.length>>1] || 1;
+        const keep = idx.filter((k,j)=> res[j] <= Math.max(2, med*2.5));
+        if(keep.length >= 10){
+          const f2 = fit(keep) || f1;
+          const resid = keep.map(k=>Math.abs(ys[k]-(f2.m*xs[k]+f2.c)));
+          const mean = resid.reduce((a,b)=>a+b,0)/resid.length;
+          angle = Math.atan(f2.m)*180/Math.PI;
+          strength = keep.length/xs.length;
+          // a real horizon: most columns agree, and they sit tight to the line
+          ok = strength > 0.55 && mean < 2.5 && Math.abs(angle) < 20;
+        }
+      }
+    }
+    f.tilt = angle;
+    f.tiltStrength = strength;
+    f.hasHorizon = ok;
+    f.horizonY = null;
+    if(ok && xs.length){
+      // height of the fitted line at frame centre, as a fraction of the frame
+      const idx = xs.map((_,k)=>k);
+      let sw=0,sx=0,sy=0,sxx=0,sxy=0;
+      for(const k of idx){ const wt=ws[k]; sw+=wt; sx+=wt*xs[k]; sy+=wt*ys[k]; sxx+=wt*xs[k]*xs[k]; sxy+=wt*xs[k]*ys[k]; }
+      const den = sw*sxx - sx*sx;
+      if(den){ const m=(sw*sxy-sx*sy)/den, c=(sy-m*sx)/sw; f.horizonY = (m*(w/2)+c)/h; }
+    }
+  }
+
+  // Mirror symmetry, both axes. Vertical symmetry is how a reflection reads,
+  // which matters rather a lot on still water.
+  {
+    const S = 48, T = Math.round(S*h/w) || 32;
+    const small = new Float32Array(S*T);
+    for(let ty=0;ty<T;ty++){
+      for(let tx=0;tx<S;tx++){
+        const x0=Math.floor(tx*w/S), x1=Math.max(x0+1,Math.floor((tx+1)*w/S));
+        const y0=Math.floor(ty*h/T), y1=Math.max(y0+1,Math.floor((ty+1)*h/T));
+        let sum=0,n=0;
+        for(let y=y0;y<y1;y+=2) for(let x=x0;x<x1;x+=2){ sum+=g[y*w+x]; n++; }
+        small[ty*S+tx] = n?sum/n:0;
+      }
+    }
+    const spread = (()=>{ let mn=1e9,mx=-1e9; for(const v of small){ if(v<mn)mn=v; if(v>mx)mx=v; } return Math.max(1,mx-mn); })();
+    let dh=0, dv=0, n=0;
+    for(let y=0;y<T;y++) for(let x=0;x<S>>1;x++){
+      dh += Math.abs(small[y*S+x] - small[y*S+(S-1-x)]); n++;
+    }
+    f.symH = Math.max(0, 1 - (dh/n)/spread*2.2);
+    n=0;
+    for(let y=0;y<T>>1;y++) for(let x=0;x<S;x++){
+      dv += Math.abs(small[y*S+x] - small[(T-1-y)*S+x]); n++;
+    }
+    f.symV = Math.max(0, 1 - (dv/n)/spread*2.2);
+  }
+
+  // Falloff profile: acuity as a function of distance from the focus plane.
+  const BINS = 24, bs = new Float64Array(BINS), bc = new Uint32Array(BINS);
+  for(let t=0;t<tn;t++){
+    if(acuity[t] < 0) continue;
+    const x = ((t%COLS)+0.5)/COLS, y = (((t/COLS)|0)+0.5)/ROWS;
+    const d = Math.hypot(x-f.focusX, y-f.focusY) / 1.118;
+    const b = Math.min(BINS-1, (d*BINS)|0);
+    bs[b] += acuity[t]; bc[b]++;
+  }
+  f.profile = Array.from({length:BINS}, (_,i)=> bc[i] ? bs[i]/bc[i]/(peak||1) : null);
+
+  // Verdict
+  const rel = State.ref ? peak/State.ref : null;
+  let level, head, text;
+
+  if(valid < 6){
+    level='warn'; head='Not enough detail to judge';
+    text='Almost nothing in this frame carries edge detail — fog, sky, or a very smooth subject. Focus measurement is unreliable here.';
+  } else if(rel !== null && rel < 0.72){
+    level='bad'; head='Nothing is critically sharp';
+    text=`Peak acuity is ${(rel*100)|0}% of your reference frame. Either focus missed the subject entirely or the whole frame moved.`;
+  } else if(rel === null && peak < 0.58){
+    level='bad'; head='Soft everywhere';
+    text=`Even the crispest part of the frame reads at ${peak.toFixed(2)} acuity, well under what a properly focused file returns. Set a frame you know is sharp as your reference to confirm — but this one looks like missed focus or camera shake.`;
+  } else if(frac > 0.62){
+    level='good'; head='Sharp front to back';
+    text=`${(frac*100)|0}% of the detailed frame sits at peak acuity — a deep depth of field. Judge this one on where focus was placed, not how much of it is sharp.`;
+  } else if(frac > 0.18){
+    level='good'; head='Moderate depth of field';
+    text=`${(frac*100)|0}% of the frame is at the focus plane, falling away from there. Check the focus map: the plane should land on your subject, not in front of it.`;
+  } else {
+    level='good'; head='Shallow — subject isolated';
+    text=`Only ${(frac*100)|0}% of the detailed frame is at peak acuity, so almost everything else is deliberate background separation. The one thing that matters is whether that ${(frac*100)|0}% is on the right thing.`;
+  }
+
+  if(aniso > 1.75 && level!=='bad'){
+    level = level==='good' ? 'warn' : level;
+    text += ` Detail is ${aniso.toFixed(1)}× stronger ${anisoDir}ly than across it, which can mean ${anisoDir==='horizontal'?'vertical':'horizontal'} motion blur — though a strong horizon or tree line reads the same way, so check by eye.`;
+  }
+
+  f.level=level; f.head=head; f.text=text; f.rel=rel;
+  return f;
+}
+
+function subjectStats(f, box){
+  const {COLS,ROWS,acuity} = f;
+  let inS=0, inC=0, outS=0, outC=0;
+  for(let t=0;t<acuity.length;t++){
+    if(acuity[t] < 0) continue;
+    const x = ((t%COLS)+0.5)/COLS, y = (((t/COLS)|0)+0.5)/ROWS;
+    const inside = x>=box.x && x<=box.x+box.w && y>=box.y && y<=box.y+box.h;
+    if(inside){ inS += acuity[t]; inC++; } else { outS += acuity[t]; outC++; }
+  }
+  if(!inC) return null;
+  const sub = inS/inC, bg = outC ? outS/outC : 0;
+  return { sub, bg, sep: bg>0 ? sub/bg : Infinity, ofPeak: sub/(f.peak||1), tiles: inC };
+}
+
+/* ------------------------------------------------------------
+   COMPOSITION FIT
+   Not a score. Composition is a choice, so the useful question is not
+   "how good is this" but "which structure is this frame already using".
+   Every overlay in the app gets measured, the frame is matched to the
+   one it sits closest to, and the photographer decides whether that was
+   what they meant.
+------------------------------------------------------------ */
+function spiralEye(orient){
+  // run the same subdivision the overlay draws, and see where it converges
+  const CW=PHI, CH=1;
+  let x=0,y=0,w=CW,h=CH,dir=0;
+  for(let i=0;i<24 && w>1e-6 && h>1e-6;i++){
+    const sq=Math.min(w,h);
+    if(dir===0){ x+=sq; w-=sq; }
+    else if(dir===1){ y+=sq; h-=sq; }
+    else if(dir===2){ w-=sq; }
+    else { h-=sq; }
+    dir=(dir+1)%4;
+  }
+  let ex=(x+w/2)/CW, ey=(y+h/2)/CH;
+  if(orient&1) ex=1-ex;
+  if(orient&2) ey=1-ey;
+  return [ex,ey];
+}
+
+function distToSegs(px,py,segs,ar){
+  let best=Infinity;
+  for(const [x1,y1,x2,y2] of segs){
+    const dx=(x2-x1)*ar, dy=y2-y1;
+    const L=dx*dx+dy*dy;
+    let t = L ? (((px-x1)*ar*dx + (py-y1)*dy)/L) : 0;
+    t=Math.max(0,Math.min(1,t));
+    const cx=x1+(x2-x1)*t, cy=y1+(y2-y1)*t;
+    best=Math.min(best, Math.hypot((px-cx)*ar,py-cy));
+  }
+  return best/Math.hypot(ar,1);
+}
+function distToPts(px,py,pts,ar){
+  let best=Infinity, at=null;
+  for(const [x,y] of pts){
+    const d=Math.hypot((px-x)*ar,(py-y))/Math.hypot(ar,1);
+    if(d<best){best=d;at=[x,y];}
+  }
+  return {d:best, at};
+}
+const fitOf = d => Math.max(0, Math.min(1, 1 - d/0.13));
+
+function compositionFits(f, ar){
+  const px=f.focusX, py=f.focusY;
+  const a=1/(1+PHI), b=PHI/(1+PHI);
+  const out=[];
+
+  const thirds = distToPts(px,py,[[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]],ar);
+  out.push({key:'thirds', name:'Rule of thirds', fit:fitOf(thirds.d), at:thirds.at,
+    note:'The steady one. Puts the subject off-centre without making a statement of it.'});
+
+  const golden = distToPts(px,py,[[a,a],[b,a],[a,b],[b,b]],ar);
+  out.push({key:'phi', name:'Golden ratio', fit:fitOf(golden.d), at:golden.at,
+    note:'Tighter to centre than thirds. Calmer, and it suits a subject with room around it.'});
+
+  let bestSp={d:Infinity,o:0,at:null};
+  for(let o=0;o<4;o++){
+    const [ex,ey]=spiralEye(o);
+    const d=Math.hypot((px-ex)*ar,(py-ey))/Math.hypot(ar,1);
+    if(d<bestSp.d) bestSp={d,o,at:[ex,ey]};
+  }
+  out.push({key:'spiral', name:'Golden spiral', fit:fitOf(bestSp.d), at:bestSp.at, orient:bestSp.o,
+    note:'For a frame that unwinds — the eye enters wide and settles at the small end.'});
+
+  // 45 degree lines from each corner, expressed in frame coordinates
+  const k=1/ar;
+  const segs45=[[0,0,1,k],[1,0,0,k],[0,1,1,1-k],[1,1,0,1-k]];
+  const d45=distToSegs(px,py,segs45,ar);
+  out.push({key:'diag', name:'Diagonal method', fit:fitOf(d45), at:null,
+    note:'Places the subject on a 45° line from a corner. Good when the frame already has movement in it.'});
+
+  // The anchors of this system are NOT the diagonal itself — a diagonal sweeps
+  // most of the frame and would match anything. They are the four points where
+  // a perpendicular from the opposite corners meets it.
+  const t1 = (ar*ar)/(ar*ar+1), t2 = 1/(ar*ar+1);
+  const triPts = [[t1,t1],[t2,t2],[t2,1-t2],[t1,1-t1]];
+  const tri = distToPts(px,py,triPts,ar);
+  out.push({key:'tri', name:'Golden triangles', fit:fitOf(tri.d), at:tri.at,
+    note:'Sits where a perpendicular from the corner meets the diagonal. Suits scenes that split along a line.'});
+
+  const dC=Math.hypot((px-0.5)*ar,(py-0.5))/Math.hypot(ar,1);
+  const symBonus=Math.max(f.symH||0,f.symV||0);
+  out.push({key:'centre', name:'Centred / symmetrical', fit:Math.max(fitOf(dC)*0.45+symBonus*0.55,0), at:[0.5,0.5],
+    note: (f.symV||0) > (f.symH||0)
+      ? 'Top and bottom mirror each other — the way a reflection reads.'
+      : 'Left and right mirror each other. Deliberate symmetry, not an accident of framing.'});
+
+  out.sort((x,y)=>y.fit-x.fit);
+  return out;
+}
+
+function horizonNote(f){
+  if(!f.hasHorizon || f.horizonY===null) return null;
+  const y=f.horizonY;
+  const near=(v,t)=>Math.abs(y-v)<t;
+  if(near(1/3,0.045))  return {where:'on the upper third', why:'Gives weight to the foreground — land, water or whatever is nearest.'};
+  if(near(2/3,0.045))  return {where:'on the lower third', why:'Gives the sky the frame. The usual choice when the light is in the clouds.'};
+  if(near(0.5,0.035))  return {where:'centred', why:(f.symV||0)>0.55 ? 'Which is right for a reflection — it makes the mirroring the subject.' : 'Splits the frame evenly. Deliberate for reflections, restless otherwise.'};
+  if(y<0.28) return {where:`high, at ${(y*100).toFixed(0)}% down`, why:'Almost all foreground. Strong if the foreground earns it.'};
+  if(y>0.72) return {where:`low, at ${(y*100).toFixed(0)}% down`, why:'Almost all sky. Strong if the sky earns it.'};
+  return {where:`at ${(y*100).toFixed(0)}% down`, why:'Between the usual positions — worth nudging onto a third if nothing depends on it.'};
+}
+
+/* ------------------------------------------------------------
+   THE SCORE
+   Exposure and focus are measurements, so they can honestly carry a
+   rating. Composition is NOT scored — see the note in the panel. What
+   the frame gets instead is a level check, which IS objective, plus
+   observations.
+------------------------------------------------------------ */
+const half = v => Math.max(0.5, Math.min(5, Math.round(v*2)/2));
+
+function rate(e, f, sub){
+  let ex = 5;
+  if(e.clipAll > 1)        ex -= 2.5;
+  else if(e.clipAll > 0.4) ex -= 1.5;
+  else if(e.clipAll > 0.15)ex -= 0.75;
+  if(e.chanClip > 3)        ex -= 1;
+  else if(e.chanClip > 1.5) ex -= 0.5;
+  if(e.crush > 3)        ex -= 1.5;
+  else if(e.crush > 1.5) ex -= 0.75;
+  if(e.p95 < 175 && e.mean < 85) ex -= 1.5;
+  if(e.spread < 110)             ex -= 1;
+  if(e.p95 > 235 && e.clipAll < 0.15) ex += 0.5;   // exposed right, nothing lost
+  ex = half(ex);
+
+  let fo = null;
+  if(f.valid >= 6){
+    fo = 5;
+    const rel = State.ref ? f.peak/State.ref : null;
+    if(rel !== null){
+      if(rel < 0.55)      fo -= 3;
+      else if(rel < 0.72) fo -= 2;
+      else if(rel < 0.85) fo -= 1;
+    } else {
+      if(f.peak < 0.58)      fo -= 3;
+      else if(f.peak < 0.75) fo -= 1.5;
+    }
+    if(f.aniso > 2.2)       fo -= 1.5;
+    else if(f.aniso > 1.75) fo -= 0.75;
+    if(sub){
+      if(sub.ofPeak < 0.6)      fo -= 2;
+      else if(sub.ofPeak < 0.8) fo -= 1;
+    }
+    fo = half(fo);
+  }
+
+  // A frame with perfect focus and blown highlights is not an average frame,
+  // it is a blown frame. Weight the overall hard toward the weaker axis.
+  const parts = [ex].concat(fo===null?[]:[fo]);
+  const mean = parts.reduce((a,b)=>a+b,0)/parts.length;
+  const worst = Math.min(...parts);
+  return { exposure: ex, focus: fo, overall: half(worst*0.65 + mean*0.35) };
+}
+
+/* What went right. Photographers get told what is wrong all day; this is
+   the half that keeps someone using the tool. */
+function wins(e, f, sub, cmp){
+  const w = [];
+  if(e.clipAll <= 0.15) w.push('Highlights are intact — every bright tone still holds detail');
+  if(e.crush <= 1.5)    w.push('Shadows keep their separation, nothing blocked to pure black');
+  if(e.spread >= 150)   w.push(`Tones span ${e.spread} of 255 levels — a full, healthy range`);
+  if(e.p95 > 235 && e.clipAll < 0.15) w.push('Exposed as far right as it will go without losing anything');
+  if(e.chanClip <= 1.5 && e.clipAll <= 0.15) w.push('No single colour channel is blowing out');
+
+  if(f.valid >= 6){
+    const rel = State.ref ? f.peak/State.ref : null;
+    if((rel !== null && rel >= 0.85) || (rel === null && f.peak >= 0.9))
+      w.push('Critically sharp where it matters');
+    if(f.aniso <= 1.5) w.push('No sign of camera shake or motion smear');
+    if(f.frac > 0.62)  w.push('Sharp front to back — the whole scene is holding focus');
+    else if(f.frac < 0.18) w.push('Clean subject isolation, background falling away as it should');
+    if(sub && sub.sep > 1.5) w.push(`Subject reads ${sub.sep.toFixed(1)}× crisper than its background`);
+    if(sub && sub.ofPeak > 0.9) w.push('Focus landed exactly on your subject');
+    if(f.hasHorizon && Math.abs(f.tilt) < 0.3) w.push('Horizon is dead level');
+  }
+  if(cmp && cmp.near.d < 0.055) w.push(`Focus falls on a ${cmp.near.name} point`);
+  return w.slice(0, 5);
+}
+
+/* What to change, said the way you would say it to another photographer:
+   the setting to move, not the abstraction. */
+function fixes(e, f, sub){
+  const x = [];
+  if(e.clipAll > 0.15){
+    const back = e.clipAll > 5 ? 'a stop and a half'
+               : e.clipAll > 2 ? 'a full stop'
+               : e.clipAll > 0.4 ? '2/3 stop' : '1/3 stop';
+    x.push({t:'Highlights', s:`${e.clipAll.toFixed(1)}% of the frame is pure white and gone for good.`,
+      field:`Dial in −${back} exposure compensation and shoot it again. If your camera has highlight-weighted metering, switch to it — it meters for the brightest area instead of the average. Turn the blinkies on while you're at it.`});
+  }
+  if(e.chanClip > 1.5 && e.chanClip > e.clipAll*3){
+    const ch = e.chanName;
+    const advice = ch === 'red'
+      ? `Red saturates before anything else — it is why sunsets go orange-to-white and skin goes plastic. Your luminance histogram will look perfectly safe while this is happening, so switch the camera to the RGB histogram and watch the red trace, not the grey one. Pull −1/3 to −2/3 stop until red comes off the right wall. If the camera lets you, drop the picture profile's saturation and contrast a notch: that clipping is partly the JPEG engine, not the sensor. A cooler white balance also buys you a little red headroom, and you can warm it back afterwards.`
+      : ch === 'blue'
+      ? `Blue clips first in deep sky and water at altitude, and in shade under an open blue sky. Warm the white balance a touch or drop −1/3 stop, and check the RGB histogram rather than the luminance one.`
+      : `Green clips in bright foliage under direct sun. Drop −1/3 stop and watch the RGB histogram rather than the luminance one.`;
+    x.push({t:`The ${ch} channel is clipping`, s:`${e.chanClip.toFixed(1)}% of pixels max out in ${ch} while overall brightness still looks safe.`, field:advice});
+  }
+  if(e.crush > 1.5)
+    x.push({t:'Shadows', s:`${e.crush.toFixed(1)}% is pure black with nothing left in it.`,
+      field:'If the subject is what is dark, add light: fill flash, a reflector, or move so the light comes across it rather than behind it. If the dark area does not matter, ignore this. If the scene simply outruns the sensor, bracket and blend later.'});
+  if(e.p95 < 175 && e.mean < 85)
+    x.push({t:'Underexposed', s:`About ${Math.log2(235/Math.max(e.p95,1)).toFixed(1)} stops under.`,
+      field:'Add exposure now rather than lifting it later — a lifted 8-bit file bands in skies and goes noisy in shadows. Widen the aperture first, then slow the shutter if you can hold it, and raise ISO last.'});
+  if(e.spread < 110)
+    x.push({t:'Flat light', s:`Only ${e.spread} of 255 levels in use.`,
+      field:'This is the light, not the camera. Wait for the sun to drop, move to find some side-light, or come back — no amount of contrast in post will invent tones that were never recorded.'});
+
+  if(f.valid >= 6){
+    const rel = State.ref ? f.peak/State.ref : null;
+    if((rel !== null && rel < 0.72) || (rel === null && f.peak < 0.58))
+      x.push({t:'Nothing is sharp', s:'Either focus missed or the whole frame moved.',
+        field:'Check the shutter against your focal length — 1/focal length is still a fair handheld floor, and double it if the lens is long. Then confirm it is not the focus: put a single AF point on the subject rather than letting the camera choose, and if the light is low enough that AF is hunting, switch to manual and magnify.'});
+    if(f.aniso > 1.75)
+      x.push({t:'Possible motion blur', s:`Detail is ${f.aniso.toFixed(1)}× stronger in one direction than across it.`,
+        field:'Raise the shutter two or three stops and reshoot. If it repeats at a high shutter speed, it is not you — check whether stabilisation is fighting a tripod, and turn it off if it is.'});
+    if(sub && sub.ofPeak < 0.8)
+      x.push({t:'Focus is off your subject', s:`Your marked subject reads ${(sub.ofPeak*100).toFixed(0)}% of the sharpest point — focus actually landed at ${(f.focusX*100).toFixed(0)}% across, ${(f.focusY*100).toFixed(0)}% down.`,
+        field:`Single-point AF straight on the subject. If the depth of field is too thin to cover it, stop down — every stop roughly doubles what stays acceptably sharp. ${f.frac < 0.18 ? 'This frame is very shallow, so a small focus error costs you everything.' : ''}`});
+    if(f.hasHorizon && Math.abs(f.tilt) >= 0.3)
+      x.push({t:'Horizon is off level', s:`Tilted ${Math.abs(f.tilt).toFixed(1)}° ${f.tilt > 0 ? 'down to the right' : 'down to the left'}.`,
+        field:`Rotate ${Math.abs(f.tilt).toFixed(1)}° ${f.tilt > 0 ? 'anticlockwise' : 'clockwise'}. Straightening costs you about ${(Math.abs(f.tilt)*1.8).toFixed(0)}% of the frame in the crop, so if the edges are tight, reshoot it level rather than fixing it later — turn on the camera's electronic level.`});
+  }
+  return x;
+}
+
+function starsHTML(v){
+  if(v === null) return '<span class="stars"><span class="sdim">not measurable</span></span>';
+  return `<span class="stars"><span class="sback">★★★★★</span><span class="sfill" style="width:${v/5*100}%">★★★★★</span></span>`;
+}
+
+/* ------------------------------------------------------------
+   LENS SIMULATION
+   The part people get wrong: PERSPECTIVE depends only on where you
+   stand, never on focal length. So cropping into a phone frame shows
+   you honestly what a longer lens sees FROM THAT SAME SPOT — framing
+   and compression both. What a crop cannot show you is depth of field
+   or detail, and those are exactly what the long lens buys you.
+------------------------------------------------------------ */
+const FORMATS = [
+  {id:'ff',    name:'Full frame', crop:1.0,  coc:0.030},
+  {id:'apsc15',name:'APS-C 1.5×', crop:1.5,  coc:0.020},
+  {id:'apsc16',name:'APS-C 1.6×', crop:1.6,  coc:0.019},
+  {id:'mft',   name:'M4/3 2.0×',  crop:2.0,  coc:0.015},
+  {id:'mf',    name:'Medium',     crop:0.79, coc:0.039}
+];
+const LENSES = [14,24,35,50,85,135,200,400];
+
+function fmt(){ return FORMATS.find(f=>f.id===State.format) || FORMATS[0]; }
+
+/* Phones carry several cameras and a digital zoom on top. The zoom number on
+   screen (0.5×, 1×, 3×) is a multiple of the MAIN camera, so everything is
+   worked back to that. EXIF usually names the physical lens correctly but
+   almost never accounts for digital zoom, hence the override. */
+const ZOOMS = [
+  {z:0.5, label:'0.5×', name:'ultra-wide'},
+  {z:0.6, label:'0.6×', name:'ultra-wide'},
+  {z:1,   label:'1×',   name:'main'},
+  {z:2,   label:'2×',   name:'telephoto'},
+  {z:3,   label:'3×',   name:'telephoto'},
+  {z:5,   label:'5×',   name:'telephoto'},
+  {z:10,  label:'10×',  name:'long zoom'}
+];
+
+function zoomName(z){
+  if(z < 0.9) return 'ultra-wide';
+  if(z < 1.1) return 'main camera';
+  if(z <= 5)  return 'telephoto';
+  return 'long zoom';
+}
+
+// Given a 35mm-equivalent, what zoom setting does that correspond to?
+function zoomFromEq(eq, base){ return eq/base; }
+
+/* A phone has a tiny sensor, so its 35mm-equivalent is many times its real
+   focal length. A camera's is 1x to 2x. That ratio is all we need to know
+   which kind of file we are looking at — and it matters, because the whole
+   Lens panel means something different for each. */
+function sourceKind(ex){
+  if(!ex) return 'unknown';
+  const f = ex.focalLength, e = ex.focal35;
+  if(f > 0 && e > 0){
+    const cf = e/f;
+    if(cf > 3) return 'phone';
+    return 'camera';
+  }
+  if(/apple|samsung|google|pixel|xiaomi|oneplus|huawei|oppo|vivo/i.test(ex.make||'')) return 'phone';
+  if(/canon|nikon|sony|fuji|olympus|panasonic|leica|pentax|hasselblad/i.test(ex.make||'')) return 'camera';
+  return 'unknown';
+}
+
+function applyExifLens(ex){
+  State.digitalZoom = (ex.digitalZoom && ex.digitalZoom > 1.05) ? ex.digitalZoom : 1;
+  State.kind = sourceKind(ex);
+
+  if(State.kind === 'camera' && ex.focal35 > 0){
+    // A real camera file: the shot IS the reference. Set the body format from
+    // its own crop factor and simulate other lenses from where it stood.
+    State.phoneEq = ex.focal35;
+    State.eqSource = 'camera';
+    State.shotMM = ex.focalLength || null;
+    const cf = (ex.focalLength > 0) ? ex.focal35/ex.focalLength : 1;
+    let best = FORMATS[0], bd = Infinity;
+    for(const F of FORMATS){ const d = Math.abs(F.crop - cf); if(d < bd){ bd = d; best = F; } }
+    if(bd < 0.25 && !State.formatManual) State.format = best.id;
+    if(ex.fNumber > 0) State.fstop = ex.fNumber;
+    return;
+  }
+
+  if(State.zoomManual) return;                       // the user has overruled this
+  if(ex.focal35 > 0){
+    // EXIF names the physical lens. Digital zoom on top of it is usually absent
+    // from that number, so fold it in and flag it as an assumption.
+    State.phoneEq = ex.focal35 * State.digitalZoom;
+    State.eqSource = State.digitalZoom > 1 ? 'exif+zoom' : 'exif';
+    const z = zoomFromEq(ex.focal35, State.phoneBase);
+    // a shot at 1× teaches us this phone's main camera for future files
+    if(z > 0.85 && z < 1.2){ State.phoneBase = ex.focal35; saveNum('loupe.base', ex.focal35); }
+    State.zoom = zoomFromEq(State.phoneEq, State.phoneBase);
+  } else {
+    State.phoneEq = State.phoneBase * State.zoom;
+    State.eqSource = 'assumed';
+  }
+}
+
+function setZoom(z){
+  State.zoom = z; State.zoomManual = true;
+  State.phoneEq = State.phoneBase * z;
+  State.eqSource = 'zoom';
+}
+
+// Horizontal field of view in degrees for a 35mm-equivalent focal length
+function fov(eq){ return 2*Math.atan(36/(2*eq))*180/Math.PI; }
+
+// Depth of field, standard hyperfocal formulation. Distance in metres.
+function dof(fmm, N, dist, coc){
+  const f = fmm, s = dist*1000;
+  const H = (f*f)/(N*coc) + f;
+  const near = s*(H-f)/(H+s-2*f);
+  const far  = s >= H ? Infinity : s*(H-f)/(H-s);
+  return {near:near/1000, far:far/1000, total:(far-near)/1000, hyper:H/1000};
+}
+
+function lensPlan(){
+  const shot = State.shots[State.idx];
+  if(!shot||!shot.result) return null;
+  const {natW, natH} = shot.result;
+  const F = fmt();
+  const phoneEq = State.phoneEq;                      // 35mm equivalent of the taking lens
+  const targetEq = State.lensMM * F.crop;             // what that lens sees, in 35mm terms
+  const rel = phoneEq / targetEq;                     // linear crop, 1 = whole frame
+
+  const aspect = State.aspect;                        // target camera aspect, w/h
+  const frameAspect = natW/natH;
+  // fit the target aspect inside the cropped width
+  let w = rel, h = rel * (frameAspect/aspect);
+  if(h > 1){ const k = 1/h; h = 1; w = rel*k; }
+
+  const px = Math.round(natW*w) * Math.round(natH*h);
+  // digital zoom upscales: the pixels are there, the detail is not
+  const realPx = px / (State.digitalZoom * State.digitalZoom);
+  const d = dof(State.lensMM, State.fstop, State.dist, F.coc);
+
+  return {F, phoneEq, targetEq, rel, w:Math.min(w,1), h:Math.min(h,1), px, mp:realPx/1e6, d,
+          rawMp:px/1e6, tooWide: rel > 1, fovDeg: fov(targetEq), natW, natH};
+}
+
+/* ------------------------------------------------------------
+   3. PIPELINE
+------------------------------------------------------------ */
+/* ------------------------------------------------------------
+   EXIF — enough of it to learn what lens took the frame.
+   Written out longhand rather than pulled from a library so the
+   app stays one file with no dependencies.
+------------------------------------------------------------ */
+async function exif(file){
+  const out = {};
+  try{
+    const buf = await file.slice(0, 256*1024).arrayBuffer();
+    const v = new DataView(buf);
+    if(v.getUint16(0) !== 0xFFD8) return out;            // not a JPEG
+    let p = 2, tiff = -1;
+    while(p < v.byteLength-4){
+      if(v.getUint8(p) !== 0xFF) break;
+      const marker = v.getUint8(p+1), len = v.getUint16(p+2);
+      if(marker === 0xE1 &&
+         v.getUint32(p+4) === 0x45786966 && v.getUint16(p+8) === 0){ tiff = p+10; break; }
+      if(marker === 0xDA) break;                          // image data starts
+      p += 2 + len;
+    }
+    if(tiff < 0) return out;
+
+    const le = v.getUint16(tiff) === 0x4949;
+    const u16 = o => v.getUint16(o, le), u32 = o => v.getUint32(o, le);
+    if(u16(tiff+2) !== 42) return out;
+
+    const readVal = (type, count, off) => {
+      const rat = o => { const n=u32(o), d=u32(o+4); return d ? n/d : 0; };
+      switch(type){
+        case 1: case 7: return v.getUint8(off);
+        case 2: { let sIdx=''; for(let i=0;i<count-1;i++){ const c=v.getUint8(off+i); if(!c) break; sIdx+=String.fromCharCode(c);} return sIdx.trim(); }
+        case 3: return u16(off);
+        case 4: return u32(off);
+        case 5: return rat(off);
+        case 9: return v.getInt32(off, le);
+        case 10:{ const n=v.getInt32(off,le), d=v.getInt32(off+4,le); return d ? n/d : 0; }
+        default: return null;
+      }
+    };
+    const SIZE = {1:1,2:1,3:2,4:4,5:8,7:1,9:4,10:8};
+
+    const walk = (ifd, want) => {
+      if(ifd <= 0 || ifd+2 > v.byteLength) return;
+      const n = u16(ifd);
+      for(let i=0;i<n;i++){
+        const e = ifd + 2 + i*12;
+        if(e+12 > v.byteLength) return;
+        const tag = u16(e), type = u16(e+2), count = u32(e+4);
+        const bytes = (SIZE[type]||0) * count;
+        const off = bytes > 4 ? tiff + u32(e+8) : e+8;
+        if(off < 0 || off >= v.byteLength) continue;
+        if(want[tag]) { try{ out[want[tag]] = readVal(type, count, off); }catch(err){} }
+        if(tag === 0x8769) walk(tiff + u32(e+8), EXIF_TAGS);
+      }
+    };
+    const IFD0 = {0x010F:'make', 0x0110:'model', 0x8769:'_exif'};
+    const EXIF_TAGS = {
+      0x829A:'exposureTime', 0x829D:'fNumber', 0x8827:'iso',
+      0x920A:'focalLength', 0xA405:'focal35', 0xA434:'lens',
+      0xA404:'digitalZoom',                       // 1 = optical, >1 = cropped in
+      0xA002:'exifW', 0xA003:'exifH', 0x9206:'subjectDistance'
+    };
+    walk(tiff + u32(tiff+4), Object.assign({}, IFD0, EXIF_TAGS));
+  }catch(err){ /* EXIF is a bonus, never a requirement */ }
+  return out;
+}
+
+async function decode(file){
+  try{ return await createImageBitmap(file, {imageOrientation:'from-image'}); }
+  catch(e){
+    return await new Promise((res,rej)=>{
+      const img=new Image(), u=URL.createObjectURL(file);
+      img.onload=()=>{URL.revokeObjectURL(u);res(img);};
+      img.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('This file could not be decoded. Export it to JPEG and try again.'));};
+      img.src=u;
+    });
+  }
+}
+
+function sample(src, maxEdge){
+  const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
+  const k = Math.min(1, maxEdge/Math.max(sw,sh));
+  const w = Math.max(8, Math.round(sw*k)), h = Math.max(8, Math.round(sh*k));
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  const cx = c.getContext('2d',{willReadFrequently:true});
+  cx.drawImage(src,0,0,w,h);
+  return {data: cx.getImageData(0,0,w,h).data, w, h, sw, sh};
+}
+
+async function analyse(shot){
+  const src = shot.bmp;
+  if(shot.file && !shot.exif){
+    shot.exif = await exif(shot.file);
+  }
+  if(shot.exif){ applyExifLens(shot.exif);
+  }
+  const tone = sample(src, 900);
+  const edge = sample(src, State.res==='critical' ? 3200 : 1700);
+  const e = exposure(tone.data, tone.w*tone.h);
+  const f = focus(edge.data, edge.w, edge.h);
+  shot.result = {e, f, natW: tone.sw, natH: tone.sh, anaW: edge.w, anaH: edge.h};
+  p_natW = tone.sw; p_natH = tone.sh;
+  return shot.result;
+}
+
+/* ------------------------------------------------------------
+   4. RENDER — image, overlays, readouts
+------------------------------------------------------------ */
+const base = $('#base'), over = $('#over');
+
+function fitCanvas(){
+  const shot = State.shots[State.idx]; if(!shot) return;
+  const src = shot.bmp;
+  const sw = src.width||src.naturalWidth, sh = src.height||src.naturalHeight;
+  const st = $('#stage').getBoundingClientRect();
+  const pad = 28;
+  const k = Math.min((st.width-pad)/sw, (st.height-pad)/sh, 1.6);
+  const w = Math.max(40,Math.round(sw*k)), h = Math.max(40,Math.round(sh*k));
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  for(const c of [base,over]){
+    c.width = Math.round(w*dpr); c.height = Math.round(h*dpr);
+    c.style.width = w+'px'; c.style.height = h+'px';
+  }
+  base.getContext('2d').drawImage(src,0,0,base.width,base.height);
+  drawOverlays();
+}
+
+function heat(v){ // 0..1 → cool → peaking magenta
+  if(v<0) return [60,62,70,0];
+  const s=[[22,34,78],[46,96,196],[128,86,150],[238,72,62],[61,220,132]];
+  const p=Math.min(0.999,Math.max(0,v))*(s.length-1), i=p|0, t=p-i;
+  const a=s[i], b=s[i+1]||s[i];
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t, 1];
+}
+
+const LEGENDS = {
+  focusmap: `
+    <h5>Focus map</h5>
+    <p>Every part of the picture is colour-coded by how <b>crisply</b> its detail is rendered.</p>
+    <div class="ramp"></div>
+    <div class="ramp-ends"><span>softest</span><span>sharpest</span></div>
+    <p><span class="swatch" style="background:rgb(61,220,132)"></span><b>Bright green</b> — the crispest detail in the frame.
+       <span class="swatch" style="background:rgb(238,72,62);margin-left:6px"></span><b>Red</b> — sharpness tailing off.
+       <span class="swatch" style="background:rgb(46,96,196);margin-left:6px"></span><b>Blue</b> — well off the focus plane.
+       <span class="swatch" style="background:rgb(120,124,134);margin-left:6px"></span><b>Grey</b> — no detail there to measure.</p>
+    <p>Grey is smooth sky, still water or a plain wall &mdash; nothing to judge, and <b>not</b> a fault.</p>
+    <p>Green means crisp throughout, here and in peaking. Amber and blue always mean a warning, never a reading.</p>
+    <p><b>Read it as a map, not a verdict.</b> The scale always runs from this frame's softest to its sharpest, so peach appears even in a photograph where nothing is sharp. It tells you <em>where</em> focus landed. Whether that is sharp enough is on the Focus tab.</p>`,
+
+  peaking: `
+    <h5>Focus peaking</h5>
+    <p>The tool film crews use to focus by hand. Every pixel carrying the <b>finest detail</b> is outlined in
+       <span class="swatch" style="background:rgb(61,220,132)"></span>green. Whatever glows is genuinely in focus.</p>
+    <p>Look for the glow to sit where you meant it &mdash; an eye, bark, an edge. If it is on the branch behind your subject, focus missed. If almost nothing glows anywhere, the frame is soft.</p>
+    <p>Smooth areas never glow however sharp the lens, because there is no detail there to render. Judge it on the textured parts.</p>`,
+
+  clip: `
+    <h5>Clipping</h5>
+    <p><span class="swatch" style="background:rgb(255,194,75)"></span><b>Amber stripes</b> mark pure white &mdash; every scrap of highlight detail is gone, and no slider will bring it back.</p>
+    <p><span class="swatch" style="background:rgb(87,212,240)"></span><b>Blue stripes</b> mark pure black, with no separation left in the shadow.</p>
+    <p>A little amber on the sun itself, or on glints off water, is normal and worth ignoring. Amber across cloud, snow or skin is the one to reshoot.</p>`
+};
+
+function renderLegend(){
+  const el = $('#legend'); if(!el) return;
+  const key = ['focusmap','peaking','clip'].find(k=>State.overlays.has(k));
+  if(!key || State.legendOff === key){ el.hidden = true; return; }
+  const wasHidden = el.hidden;
+  el.hidden = false;
+  el.innerHTML = LEGENDS[key] + `<button class="close" title="Hide">&#10005;</button>`;
+  if(wasHidden) $('#read').scrollTop = 0;
+  const c = el.querySelector('.close');
+  if(c) c.onclick = ()=>{ State.legendOff = key; el.hidden = true; };
+}
+
+function drawOverlays(){
+  const shot = State.shots[State.idx]; if(!shot||!shot.result) return;
+  const {f} = shot.result;
+  const cx = over.getContext('2d');
+  const W = over.width, H = over.height;
+  cx.clearRect(0,0,W,H);
+  const O = State.overlays;
+
+  if(O.has('focusmap')) drawFocusMap(cx,W,H,f);
+  if(O.has('peaking'))  drawPeaking(cx,W,H,shot);
+  if(O.has('clip'))     drawClipping(cx,W,H,shot);
+
+  const line = Math.max(1, Math.round(W/900));
+  cx.lineWidth = line;
+  cx.setLineDash([]);
+
+  if(O.has('thirds')){
+    strokeGrid(cx,W,H,[1/3,2/3],[1/3,2/3],GRID,line);
+    dots(cx,W,H,[1/3,2/3],[1/3,2/3],GRID_DOT);
+  }
+  if(O.has('phi')){
+    const a = 1/(1+PHI), b = PHI/(1+PHI);
+    strokeGrid(cx,W,H,[a,b],[a,b],GRID,line);
+    dots(cx,W,H,[a,b],[a,b],GRID_DOT);
+  }
+  if(O.has('spiral')) drawSpiral(cx,W,H,State.orient,line);
+  if(O.has('diag'))   drawDiagonals(cx,W,H,line);
+  if(O.has('tri'))    drawTriangles(cx,W,H,State.orient,line);
+  if(O.has('lens'))   drawLensBox(cx,W,H,line);
+
+  // the sharpest-region marker, only when asked for
+  if(f.valid >= 6 && State.showPeak){
+    const x=f.focusX*W, y=f.focusY*H, r=Math.max(9,W/70);
+    cx.strokeStyle=CONFIRM; cx.lineWidth=line*1.6;
+    cx.beginPath(); cx.arc(x,y,r,0,Math.PI*2); cx.stroke();
+    cx.beginPath();
+    cx.moveTo(x-r*1.7,y); cx.lineTo(x-r*.45,y); cx.moveTo(x+r*.45,y); cx.lineTo(x+r*1.7,y);
+    cx.moveTo(x,y-r*1.7); cx.lineTo(x,y-r*.45); cx.moveTo(x,y+r*.45); cx.lineTo(x,y+r*1.7);
+    cx.stroke();
+    // say what it is, or nobody can know
+    const lab = 'SHARPEST';
+    cx.font = `600 ${Math.max(9, W/95)}px ui-monospace,monospace`;
+    cx.textBaseline = 'middle';
+    const tw2 = cx.measureText(lab).width;
+    let lx = x + r*1.9, ly = y;
+    if(lx + tw2 + W/60 > W) lx = x - r*1.9 - tw2 - W/120;
+    cx.fillStyle = 'rgba(10,11,13,.82)';
+    cx.fillRect(lx - W/300, ly - W/110, tw2 + W/150, W/55);
+    cx.fillStyle = CONFIRM;
+    cx.fillText(lab, lx, ly + W/900);
+
+    if(f.split && f.rivalX !== null){
+      const rx=f.rivalX*W, ry=f.rivalY*H, rr=r*0.8;
+      cx.strokeStyle=CONFIRM_DIM; cx.lineWidth=line*1.2;
+      cx.setLineDash([line*3, line*3]);
+      cx.beginPath(); cx.arc(rx,ry,rr,0,Math.PI*2); cx.stroke();
+      cx.setLineDash([]);
+      const l2='ALSO SHARP';
+      cx.font = `600 ${Math.max(8, W/115)}px ui-monospace,monospace`;
+      const tw3 = cx.measureText(l2).width;
+      let ax2 = rx + rr*1.5;
+      if(ax2 + tw3 + W/60 > W) ax2 = rx - rr*1.5 - tw3;
+      cx.fillStyle='rgba(10,11,13,.8)';
+      cx.fillRect(ax2 - W/300, ry - W/120, tw3 + W/150, W/62);
+      cx.fillStyle=CONFIRM_DIM;
+      cx.fillText(l2, ax2, ry + W/900);
+    }
+  }
+
+  if(State.subject){
+    const s=State.subject;
+    cx.setLineDash([line*5,line*4]);
+    cx.strokeStyle='rgba(255,255,255,.95)'; cx.lineWidth=line*1.5;
+    cx.strokeRect(s.x*W, s.y*H, s.w*W, s.h*H);
+    cx.setLineDash([]);
+  }
+}
+
+// All the lenses at once — the comparison Kirk actually wants. One box per
+// focal length, nested, each labelled, with the chosen one picked out.
+function drawLensCompare(cx,W,H,lw){
+  const F = fmt();
+  const c = State.lensBox || {cx:.5, cy:.5};
+  const drawn = [];
+  for(const L of LENSES){
+    const targetEq = L * F.crop;
+    const rel = State.phoneEq / targetEq;
+    if(rel > 1) continue;                       // wider than the frame we have
+    let w = rel, h = rel * ((p_natW/p_natH)/State.aspect);
+    if(h > 1){ const k = 1/h; h = 1; w = rel*k; }
+    drawn.push({L, w:Math.min(w,1), h:Math.min(h,1)});
+  }
+  if(!drawn.length) return;
+
+  cx.save();
+  cx.fillStyle='rgba(8,9,11,.42)';
+  cx.beginPath(); cx.rect(0,0,W,H);
+  const widest = drawn[0];
+  cx.rect((c.cx - widest.w/2)*W, (c.cy - widest.h/2)*H, widest.w*W, widest.h*H);
+  cx.fill('evenodd');
+  cx.restore();
+
+  cx.font = `600 ${Math.max(10, W/70)}px ui-monospace,monospace`;
+  cx.textBaseline = 'middle';
+  drawn.forEach(d=>{
+    const bw=d.w*W, bh=d.h*H;
+    let x=c.cx*W-bw/2, y=c.cy*H-bh/2;
+    x=Math.max(0,Math.min(W-bw,x)); y=Math.max(0,Math.min(H-bh,y));
+    const chosen = d.L === State.lensMM;
+    cx.strokeStyle = chosen ? 'rgba(255,61,113,.98)' : 'rgba(255,255,255,.55)';
+    cx.lineWidth = chosen ? lw*2.4 : lw;
+    cx.setLineDash(chosen ? [] : [lw*4, lw*3]);
+    cx.strokeRect(x,y,bw,bh);
+    cx.setLineDash([]);
+    const label = `${d.L}mm`;
+    const tw = cx.measureText(label).width;
+    const ly = Math.max(W/80, y + W/80);
+    cx.fillStyle = chosen ? 'rgba(255,61,113,.95)' : 'rgba(8,9,11,.8)';
+    cx.fillRect(x+lw, ly - W/110, tw + W/90, W/55);
+    cx.fillStyle = chosen ? '#12070C' : 'rgba(255,255,255,.85)';
+    cx.fillText(label, x+lw+W/180, ly + W/220);
+  });
+
+  const cap = `${fmt().name}`;
+  cx.font = `600 ${Math.max(11, W/58)}px ui-monospace,monospace`;
+  const cw = cx.measureText(cap).width;
+  cx.fillStyle='rgba(8,9,11,.85)'; cx.fillRect(W-cw-W/40, H-W/34, cw+W/60, W/44);
+  cx.fillStyle='#fff'; cx.fillText(cap, W-cw-W/60, H-W/34+W/88);
+}
+
+let p_natW=3, p_natH=2;   // frame shape, so the compare view can size boxes
+
+function drawLensBox(cx,W,H,lw){
+  if(State.lensAll){ drawLensCompare(cx,W,H,lw); return; }
+  const p = lensPlan(); if(!p) return;
+  const c = State.lensBox || {cx:.5, cy:.5};
+  if(p.tooWide){
+    // the requested lens is wider than the phone saw — nothing to crop to
+    cx.strokeStyle='rgba(255,61,113,.9)'; cx.setLineDash([lw*6,lw*5]); cx.lineWidth=lw*2;
+    cx.strokeRect(lw,lw,W-2*lw,H-2*lw); cx.setLineDash([]);
+    return;
+  }
+  const bw = p.w*W, bh = p.h*H;
+  let x = c.cx*W - bw/2, y = c.cy*H - bh/2;
+  x = Math.max(0, Math.min(W-bw, x)); y = Math.max(0, Math.min(H-bh, y));
+
+  cx.save();
+  cx.fillStyle='rgba(8,9,11,.62)';                  // dim everything outside the frame
+  cx.beginPath(); cx.rect(0,0,W,H); cx.rect(x,y,bw,bh); cx.fill('evenodd');
+  cx.restore();
+
+  cx.strokeStyle='rgba(255,255,255,.96)'; cx.lineWidth=lw*1.8;
+  cx.strokeRect(x,y,bw,bh);
+  // corner marks, like a viewfinder
+  const m = Math.min(bw,bh)*0.12;
+  cx.strokeStyle='rgba(255,61,113,.95)'; cx.lineWidth=lw*2.6; cx.beginPath();
+  [[x,y,1,1],[x+bw,y,-1,1],[x,y+bh,1,-1],[x+bw,y+bh,-1,-1]].forEach(([px,py,sx,sy])=>{
+    cx.moveTo(px+sx*m,py); cx.lineTo(px,py); cx.lineTo(px,py+sy*m);
+  });
+  cx.stroke();
+
+  const label = `${State.lensMM}mm · ${fmt().name}`;
+  cx.font = `600 ${Math.max(11,W/58)}px ui-monospace,monospace`;
+  const tw = cx.measureText(label).width;
+  cx.fillStyle='rgba(8,9,11,.85)'; cx.fillRect(x, Math.max(0,y-W/38), tw+W/70, W/38);
+  cx.fillStyle='#fff'; cx.textBaseline='middle';
+  cx.fillText(label, x+W/140, Math.max(W/76, y-W/76));
+}
+
+// Green confirms, amber warns, and the two never mean the same thing.
+const CONFIRM     = 'rgba(61,220,132,.98)';
+const CONFIRM_DIM = 'rgba(61,220,132,.62)';
+
+// One colour for every composition guide — mixed colours read as a fault code
+const GRID     = 'rgba(255,194,75,.9)';
+const GRID_DOT = 'rgba(255,194,75,.98)';
+
+function strokeGrid(cx,W,H,vs,hs,col,lw){
+  cx.strokeStyle=col; cx.lineWidth=lw; cx.beginPath();
+  vs.forEach(v=>{cx.moveTo(v*W,0);cx.lineTo(v*W,H);});
+  hs.forEach(v=>{cx.moveTo(0,v*H);cx.lineTo(W,v*H);});
+  cx.stroke();
+}
+function dots(cx,W,H,vs,hs,col){
+  cx.fillStyle=col;
+  vs.forEach(v=>hs.forEach(u=>{cx.beginPath();cx.arc(v*W,u*H,Math.max(2,W/300),0,Math.PI*2);cx.fill();}));
+}
+
+function drawFocusMap(cx,W,H,f){
+  const {COLS,ROWS,acuity,peak} = f;
+  const t = document.createElement('canvas'); t.width=COLS; t.height=ROWS;
+  const tc = t.getContext('2d'), img = tc.createImageData(COLS,ROWS);
+  for(let i=0;i<acuity.length;i++){
+    const v = acuity[i] < 0 ? -1 : acuity[i]/(peak||1);
+    const [r,g,b,a] = heat(v);
+    img.data[i*4]=r; img.data[i*4+1]=g; img.data[i*4+2]=b;
+    img.data[i*4+3]= a ? 150 : 40;
+  }
+  tc.putImageData(img,0,0);
+  cx.imageSmoothingEnabled = true;
+  cx.globalAlpha = 0.72;
+  cx.drawImage(t,0,0,W,H);
+  cx.globalAlpha = 1;
+}
+
+function drawPeaking(cx,W,H,shot){
+  // classic focus peaking: outline the pixels carrying the finest detail
+  const s = sample(shot.bmp, Math.min(1400, W));
+  const {data,w,h} = s;
+  const g = new Float32Array(w*h);
+  for(let i=0;i<w*h;i++){const o=i*4; g[i]=0.2126*data[o]+0.7152*data[o+1]+0.0722*data[o+2];}
+  const out = new ImageData(w,h);
+  let mx=0; const lap=new Float32Array(w*h);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+    const i=y*w+x;
+    const v=Math.abs(g[i-1]+g[i+1]+g[i-w]+g[i+w]-4*g[i]);
+    lap[i]=v; if(v>mx)mx=v;
+  }
+  const thr = mx*0.22;
+  for(let i=0;i<w*h;i++){
+    if(lap[i]>thr){
+      const a = Math.min(1,(lap[i]-thr)/(mx-thr+1e-3));
+      out.data[i*4]=61; out.data[i*4+1]=220; out.data[i*4+2]=132;
+      out.data[i*4+3]=90+165*a;
+    }
+  }
+  const t=document.createElement('canvas'); t.width=w; t.height=h;
+  t.getContext('2d').putImageData(out,0,0);
+  cx.drawImage(t,0,0,W,H);
+}
+
+function drawClipping(cx,W,H,shot){
+  const s = sample(shot.bmp, Math.min(1400,W));
+  const {data,w,h} = s;
+  const out = new ImageData(w,h);
+  for(let i=0;i<w*h;i++){
+    const o=i*4, r=data[o],g=data[o+1],b=data[o+2];
+    if(r>=253&&g>=253&&b>=253){
+      // zebra stripes, like a video camera
+      const x=i%w, y=(i/w)|0;
+      if(((x+y)>>2)&1){ out.data[o]=255;out.data[o+1]=194;out.data[o+2]=75;out.data[o+3]=235; }
+    } else if(r<=2&&g<=2&&b<=2){
+      const x=i%w, y=(i/w)|0;
+      if(((x-y)>>2)&1){ out.data[o]=87;out.data[o+1]=212;out.data[o+2]=240;out.data[o+3]=200; }
+    }
+  }
+  const t=document.createElement('canvas'); t.width=w; t.height=h;
+  t.getContext('2d').putImageData(out,0,0);
+  cx.drawImage(t,0,0,W,H);
+}
+
+function drawSpiral(cx,W,H,orient,lw){
+  cx.save();
+  cx.translate(orient&1?W:0, orient&2?H:0);
+  cx.scale(orient&1?-1:1, orient&2?-1:1);
+  // build in a construction space of PHI:1, then squash to the frame
+  const CW=1000*PHI, CH=1000;
+  cx.save(); cx.scale(W/CW, H/CH);
+  cx.beginPath();
+  let x=0,y=0,w=CW,h=CH,dir=0;
+  for(let i=0;i<11 && w>0.4 && h>0.4;i++){
+    const s=Math.min(w,h);
+    let ax,ay,a0;
+    if(dir===0){ ax=x+s; ay=y+s; a0=Math.PI;   cx.arc(ax,ay,s,a0,a0+Math.PI/2); x+=s; w-=s; }
+    else if(dir===1){ ax=x+w-s; ay=y+s; a0=-Math.PI/2; cx.arc(ax,ay,s,a0,a0+Math.PI/2); y+=s; h-=s; }
+    else if(dir===2){ ax=x+w-s; ay=y+h-s; a0=0; cx.arc(ax,ay,s,a0,a0+Math.PI/2); w-=s; }
+    else { ax=x+s; ay=y+h-s; a0=Math.PI/2; cx.arc(ax,ay,s,a0,a0+Math.PI/2); h-=s; }
+    dir=(dir+1)%4;
+  }
+  cx.restore();
+  cx.strokeStyle='rgba(255,194,75,.95)'; cx.lineWidth=lw*1.6; cx.stroke();
+
+  // the phi rectangles the spiral is built from, quietly
+  cx.save(); cx.scale(W/CW,H/CH); cx.beginPath();
+  x=0;y=0;w=CW;h=CH;dir=0;
+  for(let i=0;i<7 && w>0.4 && h>0.4;i++){
+    const s=Math.min(w,h);
+    if(dir===0){ cx.rect(x,y,s,s); x+=s; w-=s; }
+    else if(dir===1){ cx.rect(x+w-s,y,s,s); y+=s; h-=s; }
+    else if(dir===2){ cx.rect(x+w-s,y+h-s,s,s); w-=s; }
+    else { cx.rect(x,y+h-s,s,s); h-=s; }
+    dir=(dir+1)%4;
+  }
+  cx.restore();
+  cx.strokeStyle='rgba(255,194,75,.28)'; cx.lineWidth=lw; cx.stroke();
+  cx.restore();
+}
+
+function drawDiagonals(cx,W,H,lw){
+  // the diagonal method: 45° from every corner. Where they cross is where
+  // a placed element sits comfortably.
+  cx.strokeStyle=GRID; cx.lineWidth=lw; cx.beginPath();
+  const d=Math.max(W,H)*1.5;
+  cx.moveTo(0,0); cx.lineTo(d,d);
+  cx.moveTo(W,0); cx.lineTo(W-d,d);
+  cx.moveTo(0,H); cx.lineTo(d,H-d);
+  cx.moveTo(W,H); cx.lineTo(W-d,H-d);
+  cx.stroke();
+}
+
+function drawTriangles(cx,W,H,orient,lw){
+  // golden triangles: one corner-to-corner diagonal, plus perpendiculars
+  // dropped onto it from the two remaining corners.
+  const flip = orient & 1;
+  const A = flip ? {x:W,y:0} : {x:0,y:0};
+  const C = flip ? {x:0,y:H} : {x:W,y:H};
+  const B = flip ? {x:0,y:0} : {x:W,y:0};
+  const D = flip ? {x:W,y:H} : {x:0,y:H};
+  const foot = P => {
+    const dx=C.x-A.x, dy=C.y-A.y, L=dx*dx+dy*dy;
+    const t=((P.x-A.x)*dx+(P.y-A.y)*dy)/L;
+    return {x:A.x+dx*t, y:A.y+dy*t};
+  };
+  cx.strokeStyle=GRID; cx.lineWidth=lw; cx.beginPath();
+  cx.moveTo(A.x,A.y); cx.lineTo(C.x,C.y);
+  const fb=foot(B), fd=foot(D);
+  cx.moveTo(B.x,B.y); cx.lineTo(fb.x,fb.y);
+  cx.moveTo(D.x,D.y); cx.lineTo(fd.x,fd.y);
+  cx.stroke();
+  cx.fillStyle=GRID_DOT;
+  [fb,fd].forEach(p=>{cx.beginPath();cx.arc(p.x,p.y,Math.max(2,W/300),0,Math.PI*2);cx.fill();});
+}
+
+/* ---------- readout panels ---------- */
+function plotHistogram(el,e){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  el.width=el.clientWidth*dpr; el.height=el.clientHeight*dpr;
+  const cx=el.getContext('2d'), W=el.width, H=el.height;
+  cx.clearRect(0,0,W,H);
+  let mx=0; for(let i=1;i<255;i++) mx=Math.max(mx,e.L[i],e.R[i],e.G[i],e.B[i]);
+  mx=Math.max(1,mx);
+  // zone rules at every 1/5 — a rough Zone System reference
+  cx.strokeStyle='rgba(255,255,255,.06)'; cx.lineWidth=1;
+  for(let i=1;i<5;i++){cx.beginPath();cx.moveTo(W*i/5,0);cx.lineTo(W*i/5,H);cx.stroke();}
+  const chan=(arr,col)=>{
+    cx.fillStyle=col; cx.beginPath(); cx.moveTo(0,H);
+    for(let i=0;i<256;i++){
+      const v=Math.pow(Math.min(1,arr[i]/mx),0.55);
+      cx.lineTo(W*i/255, H-v*H*0.95);
+    }
+    cx.lineTo(W,H); cx.closePath(); cx.fill();
+  };
+  cx.globalCompositeOperation='lighter';
+  chan(e.R,'rgba(255,60,60,.42)'); chan(e.G,'rgba(60,255,110,.34)'); chan(e.B,'rgba(70,120,255,.42)');
+  cx.globalCompositeOperation='source-over';
+  chan(e.L,'rgba(230,232,236,.30)');
+  // clipping flags at the ends
+  if(e.clipAll>0.1){cx.fillStyle='rgba(255,194,75,.95)';cx.fillRect(W-3*dpr,0,3*dpr,H);}
+  if(e.crush>0.5){cx.fillStyle='rgba(87,212,240,.95)';cx.fillRect(0,0,3*dpr,H);}
+}
+
+function plotProfile(el,f){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  el.width=el.clientWidth*dpr; el.height=el.clientHeight*dpr;
+  const cx=el.getContext('2d'), W=el.width, H=el.height;
+  cx.clearRect(0,0,W,H);
+  const p=f.profile, n=p.length;
+  cx.strokeStyle='rgba(255,255,255,.07)';
+  cx.beginPath();cx.moveTo(0,H*0.5);cx.lineTo(W,H*0.5);cx.stroke();
+  cx.beginPath(); let started=false;
+  for(let i=0;i<n;i++){
+    if(p[i]==null) continue;
+    const x=W*i/(n-1), y=H-Math.min(1,p[i])*H*0.9-H*0.05;
+    started?cx.lineTo(x,y):(cx.moveTo(x,y),started=true);
+  }
+  cx.strokeStyle='rgba(255,61,113,.95)'; cx.lineWidth=2*dpr; cx.stroke();
+}
+
+function panel(id, fn){
+  // one panel throwing must never take the others down with it
+  try{ fn(); }
+  catch(err){
+    console.error('panel', id, err);
+    const el = $('#'+id);
+    if(el) el.innerHTML = `<p class="empty">This reading could not be produced for this frame.</p>`;
+  }
+}
+
+function paint(){
+  const shot = State.shots[State.idx];
+  if(!shot||!shot.result) return;
+  const {e,f,natW,natH,anaW} = shot.result;
+
+  /* exposure */
+  $('#expBody').innerHTML = `
+    <div class="verdict"><i class="dot ${e.level==='good'?'good':e.level==='warn'?'warn':'bad'}"></i>
+      <p><b>${e.head}.</b> ${e.text}</p></div>
+    <canvas class="plot" id="hist"></canvas>
+    <div class="rows">
+      <div class="row"><span>clipped white (RGB)</span><span class="${e.clipAll>0.15?'hi':''}">${e.clipAll.toFixed(2)}%</span></div>
+      <div class="row"><span>clipped in ${e.chanName} only</span><span class="${e.chanClip>1.5?'hi':''}">${e.chanClip.toFixed(2)}%</span></div>
+      <div class="row"><span>pure black</span><span class="${e.crush>1.5?'lo':''}">${e.crush.toFixed(2)}%</span></div>
+      <div class="row"><span>tonal range (1–99%)</span><span>${e.p1} → ${e.p99}</span></div>
+      <div class="row"><span>midtone / mean</span><span>${e.p50} / ${e.mean.toFixed(0)}</span></div>
+      <div class="row"><span>room left at the top</span><span>${(Math.log2(250/Math.max(e.p99,1))).toFixed(2)} stops</span></div>
+      <div class="row"><span>levels in use</span><span>${e.spread} of 255</span></div>
+    </div>
+    <p class="note">Judged as a finished JPEG: clipped is clipped, and the ${e.spread} levels above are all you have to work with. Room left at the top is a note for the next frame, not something you can recover from this one.</p>`;
+  plotHistogram($('#hist'),e);
+
+  /* focus */
+  const sub = State.subject ? subjectStats(f,State.subject) : null;
+  $('#focBody').innerHTML = `
+    <p class="purpose">This measures <b>where the finest detail is</b>, which is not always your subject. Fine texture — moss, gravel, foliage, bark — carries more detail than a smooth in-focus surface like skin, feathers or water-worn rock, so the marker can sit away from a subject that is perfectly sharp. Read the map and the numbers below rather than the marker alone. Switch it on with <b>Sharpest point</b> if you want to see it.${f.split?` <b>This frame has two separate detailed areas</b> — likely two things at the same distance.`:''}</p>
+    <div class="verdict"><i class="dot ${f.level==='good'?'good':f.level==='warn'?'warn':'bad'}"></i>
+      <p><b>${f.head}.</b> ${f.text}</p></div>
+    <canvas class="plot strip" id="prof"></canvas>
+    <p class="note">Acuity falling away from the plane of focus — steep means shallow depth of field, flat means deep.</p>
+    <div class="rows">
+      <div class="row"><span>at the focus plane</span><span>${(f.frac*100).toFixed(0)}% of detailed frame</span></div>
+      <div class="row"><span>focus lands at</span><span class="pk">${(f.focusX*100).toFixed(0)}% / ${(f.focusY*100).toFixed(0)}%</span></div>
+      <div class="row"><span>sharp regions</span><span class="${f.split?'hi':''}">${f.regions}${f.split?' — split':''}</span></div>
+      <div class="row"><span>peak acuity</span><span>${f.peak.toFixed(3)}${f.rel!==null?` · ${(f.rel*100).toFixed(0)}% of ref`:''}</span></div>
+      <div class="row"><span>directional bias</span><span class="${f.aniso>1.75?'hi':''}">${f.aniso.toFixed(2)}× ${f.anisoDir}</span></div>
+      <div class="row"><span>measured at</span><span>${anaW}px of ${natW}×${natH}</span></div>
+      ${sub?`
+      <div class="row"><span>subject vs background</span><span class="${sub.sep>1.25?'':'hi'}">${sub.sep===Infinity?'—':sub.sep.toFixed(2)}× separation</span></div>
+      <div class="row"><span>subject vs sharpest point</span><span class="${sub.ofPeak>0.8?'':'hi'}">${(sub.ofPeak*100).toFixed(0)}%</span></div>`:''}
+    </div>
+    <div class="seg">
+      <button id="setRef">${State.ref?'Reset':'Set'} sharp reference</button>
+      <button id="clrSub">${State.subject?'Clear subject box':'Drag on the photo to mark the subject'}</button>
+    </div>
+    <p class="note">${State.ref
+      ? 'Peak acuity is scored against the frame you set as your reference for critical sharpness. Keep that reference from the same camera and the same in-camera sharpening as the files you judge — JPEG sharpening lifts these numbers.'
+      : 'Open a frame you know is tack sharp and set it as the reference — the absolute number is meaningless until then, but the focus map and depth-of-field reading are already reliable. Use a reference from the same camera and in-camera sharpening setting as the files you judge.'}</p>`;
+  plotProfile($('#prof'),f);
+  $('#setRef').onclick = ()=>{ if(State.ref){ State.ref=null; try{localStorage.removeItem('loupe.ref')}catch(e){} } else saveRef(f.peak); paint(); };
+  $('#clrSub').onclick = ()=>{ State.subject=null; drawOverlays(); paint(); };
+
+  /* composition figures, needed by the verdict too */
+  const arC = natW/natH;
+  const ptsC = {
+    'rule of thirds': [[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]],
+    'golden ratio': [[1/(1+PHI),1/(1+PHI)],[PHI/(1+PHI),1/(1+PHI)],[1/(1+PHI),PHI/(1+PHI)],[PHI/(1+PHI),PHI/(1+PHI)]]
+  };
+  const rowsC = Object.entries(ptsC).map(([name,ps])=>{
+    let best=Infinity, at=null;
+    ps.forEach(([px,py])=>{
+      const d=Math.hypot((px-f.focusX)*arC,(py-f.focusY))/Math.hypot(arC,1);
+      if(d<best){best=d;at=[px,py];}
+    });
+    return {name,d:best,at};
+  }).sort((a,b)=>a.d-b.d);
+  const cmp = {near: rowsC[0], rows: rowsC,
+    centreD: Math.hypot((0.5-f.focusX)*arC,(0.5-f.focusY))/Math.hypot(arC,1)};
+
+  /* verdict */
+  const R = rate(e, f, sub);
+  const W_ = wins(e, f, sub, cmp);
+  const X_ = fixes(e, f, sub);
+  const word = R.overall >= 4.5 ? 'Excellent' : R.overall >= 3.5 ? 'Strong' :
+               R.overall >= 2.5 ? 'Usable' : R.overall >= 1.5 ? 'Fixable next time' : 'Worth another go';
+  const fitsV = compositionFits(f, arC);
+
+  $('#verBody').innerHTML = `
+    <div class="overall">
+      <span class="big">${R.overall.toFixed(1)}</span>
+      <span>${starsHTML(R.overall)}<br><span class="sdim">${word} · technical quality</span></span>
+    </div>
+    <div class="scoreline"><b>Exposure</b><span>${starsHTML(R.exposure)}<span class="num">${R.exposure.toFixed(1)}</span></span></div>
+    <div class="scoreline"><b>Sharpness</b><span>${starsHTML(R.focus)}${R.focus!==null?`<span class="num">${R.focus.toFixed(1)}</span>`:''}</span></div>
+    <div class="scoreline"><b>Frame</b><span class="sdim">${fitsV[0].fit > 0.55 ? `built on the ${fitsV[0].name.toLowerCase()}` : 'its own structure'}</span></div>
+
+    ${W_.length ? `<p class="subh">What you got right</p><ul class="lst good">${W_.map(t=>`<li>${t}</li>`).join('')}</ul>` : ''}
+    ${X_.length ? `<p class="subh">Worth changing</p><ul class="lst todo">${X_.map(t=>`<li><b>${t.t}</b>${t.s}${t.field?`<span class="field"><em>In the field:</em> ${t.field}</span>`:''}</li>`).join('')}</ul>`
+                : `<p class="subh">Worth changing</p><p class="note">Nothing technical to flag. Whether it is a good photograph is a separate question, and not one a histogram can answer.</p>`}
+
+    <p class="note">Only exposure and sharpness carry stars, because only they are measurements — a frame either holds its highlights or it doesn't. Composition is never scored here. A subject dead centre is not worse than one on a thirds line, and plenty of the best photographs ever made would fail every grid in this app. The Frame tab shows which structure your picture is already using, and leaves the judgement to you.</p>
+    ${(()=>{ const hb=habitReport(); return hb ? `<p class="subh">Your patterns &mdash; across ${hb.n} frames</p><ul class="lst good habits">${hb.out.map(t=>`<li>${t}</li>`).join('')}</ul><p class="note">Counted on this device only, and never sent anywhere. Clearing your browser data resets it.</p>` : ''; })()}
+    ${!State.ref ? `<p class="note">The sharpness rating is provisional until you open a frame you know is tack sharp and set it as your reference, on the Focus tab.</p>` : ''}
+    ${FM.feedback ? `<p class="note">Loupe is being tested and improved. Thoughts of any kind are welcome at <a href="mailto:${FM.feedback}" style="color:var(--ok)">${FM.feedback}</a>.</p>` : ''}`;
+
+  /* lens */
+  const p = lensPlan();
+  if(p){
+    const ex = shot.exif || {};
+    const phoneName = [ex.make,ex.model].filter(Boolean).join(' ');
+    const zNow = State.zoom;
+    const srcWord = {
+      'exif':      'read from the file',
+      'exif+zoom': 'read from the file, digital zoom folded in',
+      'camera':    'read from the file',
+      'zoom':      'you set this',
+      'manual':    'you set this',
+      'assumed':   'no lens data in this file — set it below'
+    }[State.eqSource] || '';
+    const src = `${p.phoneEq.toFixed(0)}mm equiv · ${srcWord}`;
+
+    const isCam = State.kind === 'camera';
+    const purpose = isCam
+      ? `Shot at <b>${State.shotMM ? State.shotMM.toFixed(0)+'mm' : p.phoneEq.toFixed(0)+'mm equivalent'}</b>${phoneName?` on your ${phoneName}`:''}. Pick a different lens below to see what it would have framed <em>from the same spot</em>.`
+      : `Take a rough shot on your phone from where you intend to stand, then pick a lens below. You'll see exactly what it would frame &mdash; so you know what to bring before you carry it there.`;
+
+    let head, level, body;
+    if(p.tooWide){
+      level='warn'; head=`${State.lensMM}mm is wider than this frame`;
+      body=`Your phone captured ${p.phoneEq}mm equivalent, and a ${State.lensMM}mm on ${p.F.name} sees ${p.targetEq.toFixed(0)}mm equivalent — wider still. Nothing to crop to. Switch to your phone's ultra-wide camera and test again, or step back.`;
+    } else {
+      const usable = p.mp >= 2 ? 'good' : p.mp >= 0.6 ? 'warn' : 'warn';
+      level = usable; head = `${State.lensMM}mm frames this`;
+      body = `From exactly where you're standing, a ${State.lensMM}mm on ${p.F.name} gives you the boxed area — ${p.rel<1?`${(1/p.rel).toFixed(1)}× into your phone frame`:'the whole frame'}. ` +
+        (p.mp >= 2
+          ? `${p.mp.toFixed(1)} megapixels left, enough to judge the composition properly.`
+          : `Only ${p.mp.toFixed(2)} megapixels left, so treat this as a framing guide — it is far too coarse to judge sharpness.`);
+    }
+
+    const dofTxt = p.d.far === Infinity
+      ? `${p.d.near.toFixed(1)}m to infinity`
+      : `${p.d.near.toFixed(2)}–${p.d.far.toFixed(2)}m (${p.d.total.toFixed(2)}m deep)`;
+
+    $('#lenBody').innerHTML = `
+      <p class="purpose">${purpose}</p>
+
+      <div class="verdict"><i class="dot ${level==='good'?'good':'warn'}"></i>
+        <p><b>${head}.</b> ${body}</p></div>
+
+      ${isCam ? '' : `
+      <p class="note" style="margin-top:14px">Which camera took the test shot${phoneName?` — ${phoneName}`:''}</p>
+      <div class="seg" id="segZoom">${ZOOMS.map(z=>
+        `<button data-z="${z.z}" class="${Math.abs(z.z-zNow)<0.05?'on':''}">${z.label}</button>`).join('')}</div>
+      <div class="seg">
+        <button id="btnBase">1× lens is ${State.phoneBase.toFixed(0)}mm — change</button>
+      </div>`}
+      ${State.digitalZoom > 1 ? `<p class="note" style="color:var(--zebra)">This shot used ${State.digitalZoom.toFixed(1)}× digital zoom. The phone enlarged the picture rather than seeing more, so there is less real detail here than the pixel count suggests — the megapixel figure below is corrected for it.</p>` : ''}
+
+      <div class="seg" style="margin-top:14px">
+        <button id="cmpAll" class="${State.lensAll?'on':''}">${State.lensAll?'✓ Showing every lens':'Compare all lenses'}</button>
+      </div>
+
+      <p class="subh" style="margin-top:16px">Sensor</p>
+      <div class="seg" id="segFmt">${FORMATS.map(f=>`<button data-f="${f.id}" class="${f.id===State.format?'on':''}">${f.name}</button>`).join('')}</div>
+
+      ${State.lensAll ? `<p class="note">Every focal length that fits inside this frame is drawn at once, nested — the widest box is the shortest lens. Your chosen one is picked out in peach.</p>` : ''}
+      <p class="subh" style="margin-top:16px">Try a different lens &mdash; tap one</p>
+      <div class="seg lenses" id="segLens">${LENSES.map(l=>`<button data-l="${l}" class="${l===State.lensMM?'on':''}">${l}mm</button>`).join('')}</div>
+
+      <div class="rows">
+        <div class="row"><span>${isCam?'this frame was shot at':'test shot taken at'}</span><span>${src}</span></div>
+        ${isCam ? '' : `<div class="row"><span>phone camera used</span><span>${zoomName(zNow)} · ${zNow.toFixed(zNow<1?1:0)}×</span></div>`}
+        <div class="row"><span>${State.lensMM}mm on ${p.F.name}</span><span>${p.targetEq.toFixed(0)}mm equivalent</span></div>
+        <div class="row"><span>field of view</span><span>${p.fovDeg.toFixed(1)}° wide</span></div>
+        <div class="row"><span>crop of your phone frame</span><span class="${p.mp<2?'hi':''}">${p.tooWide?'—':(p.rel*100).toFixed(1)+'%'} · ${p.mp.toFixed(2)}MP${State.digitalZoom>1?` of ${p.rawMp.toFixed(2)}`:''}</span></div>
+        <div class="row"><span>depth of field at f/${State.fstop}, ${State.dist}m</span><span>${dofTxt}</span></div>
+        <div class="row"><span>hyperfocal distance</span><span>${p.d.hyper.toFixed(1)}m</span></div>
+      </div>
+
+      <p class="note" style="margin-top:14px">Aperture and subject distance, for the depth-of-field figure only</p>
+      <div class="seg" id="segF">${[1.4,2,2.8,4,5.6,8,11,16].map(f=>`<button data-fs="${f}" class="${f===State.fstop?'on':''}">f/${f}</button>`).join('')}</div>
+      <div class="seg" id="segD">${[1,2,3,5,10,20,50,100].map(d=>`<button data-d="${d}" class="${d===State.dist?'on':''}">${d}m</button>`).join('')}</div>
+
+      <p class="note">Turn on the <b>Lens</b> overlay to see the frame on the photograph, and drag it to move it around.</p>
+      <p class="note">Why this is trustworthy: perspective depends only on where you stand, never on focal length — so this crop shows the real compression a ${State.lensMM}mm gives from this spot, not merely the framing. What it cannot show is depth of field${isCam?'' : `: the real lens at f/${State.fstop} will throw the background far softer than a phone does, which is usually the whole reason for carrying it`}.</p>`;
+
+    const wire = (sel, attr, fn) => {
+      const el = $(sel); if(!el) return;
+      el.onclick = ev => { const b=ev.target.closest('button'); if(!b) return; fn(b.dataset[attr]); paint(); drawOverlays(); };
+    };
+    const ensureLensOverlay = ()=>{ if(!State.overlays.has('lens')) setOverlay('lens'); };
+    wire('#segZoom','z', v=>{ setZoom(+v); ensureLensOverlay(); });
+    wire('#segFmt','f', v=>{ State.format=v; State.formatManual=true; ensureLensOverlay(); });
+    const bb = $('#btnBase');
+    if(bb) bb.onclick = ()=>{
+      const v = prompt('What focal length is your phone\'s main (1×) camera, in 35mm equivalent?\n\nMost phones are between 24 and 28mm. It is printed in the phone\'s camera specs.', String(State.phoneBase));
+      const n = parseFloat(v);
+      if(n > 5 && n < 200){
+        State.phoneBase = n; saveNum('loupe.base', n);
+        State.phoneEq = n * State.zoom; State.zoomManual = true; State.eqSource = 'manual';
+        paint(); drawOverlays();
+      }
+    };
+    wire('#segLens','l', v=>{ State.lensMM=+v; ensureLensOverlay(); });
+    const ca = $('#cmpAll');
+    if(ca) ca.onclick = ()=>{ State.lensAll = !State.lensAll; ensureLensOverlay(); paint(); drawOverlays(); };
+    wire('#segF','fs', v=>State.fstop=+v);
+    wire('#segD','d', v=>State.dist=+v);
+  }
+
+  const fits = compositionFits(f, arC);
+  const top = fits[0];
+  const hz = horizonNote(f);
+  const OVMAP = {thirds:'thirds', phi:'phi', spiral:'spiral', diag:'diag', tri:'tri', centre:null};
+
+  $('#cmpBody').innerHTML = `
+    <p style="margin:10px 0 0;font-size:13.5px">This frame sits closest to the
+      <b>${top.name.toLowerCase()}</b>${top.fit>0.75?'':', though not strongly'}.
+      ${top.note}</p>
+
+    <p class="subh">How it fits each one</p>
+    ${fits.map(x=>`
+      <div class="fitrow">
+        <span class="fitname">${x.name}</span>
+        <span class="fitbar"><i style="width:${(x.fit*100).toFixed(0)}%"></i></span>
+        <span class="fitpct">${(x.fit*100).toFixed(0)}%</span>
+      </div>`).join('')}
+    ${OVMAP[top.key] ? `<div class="seg"><button id="showTop">Show the ${top.name.toLowerCase()} overlay</button></div>` : ''}
+
+    ${hz ? `<p class="subh">Horizon</p>
+      <p style="margin:6px 0 0;font-size:13.5px">Sitting <b>${hz.where}</b>. ${hz.why}</p>` : ''}
+
+    <div class="rows">
+      <div class="row"><span>aspect ratio</span><span>${ratioName(arC)} · ${arC.toFixed(3)}</span></div>
+      <div class="row"><span>frame size</span><span>${natW} × ${natH}</span></div>
+      <div class="row"><span>horizon level</span><span class="${f.hasHorizon && Math.abs(f.tilt)>=0.3?'hi':''}">${f.hasHorizon ? (Math.abs(f.tilt)<0.3 ? 'level' : `${Math.abs(f.tilt).toFixed(1)}° ${f.tilt>0?'down right':'down left'}`) : 'no clear horizon'}</span></div>
+      <div class="row"><span>mirror symmetry</span><span>${((f.symV||0)>(f.symH||0)?'top/bottom ':'left/right ')}${(Math.max(f.symH||0,f.symV||0)*100).toFixed(0)}%</span></div>
+      <div class="row"><span>the eye lands at</span><span>${(f.focusX*100).toFixed(0)}% across, ${(f.focusY*100).toFixed(0)}% down</span></div>
+      <div class="row"><span>crops available</span><span>${cropHint(natW,natH)}</span></div>
+    </div>
+
+    <p class="note">These are percentages of FIT, not marks. A frame that matches nothing on this list is not a weak photograph — it may simply be built on something none of these grids describes. The measurement follows the sharpest point in the frame, which is usually, though not always, where a viewer looks first.</p>`;
+
+  const st = $('#showTop');
+  if(st) st.onclick = ()=>{
+    const k = OVMAP[top.key];
+    if(!k) return;
+    if(top.orient !== undefined) State.orient = top.orient;
+    if(!State.overlays.has(k)) setOverlay(k); else { syncChips(); drawOverlays(); }
+  };
+}
+
+function ratioName(r){
+  const n=[[1,'1:1'],[4/5,'4:5'],[5/4,'5:4'],[2/3,'2:3'],[3/2,'3:2'],[3/4,'3:4'],[4/3,'4:3'],[16/9,'16:9'],[9/16,'9:16'],[PHI,'phi'],[2,'2:1'],[2.39,'2.39:1']];
+  let b=n[0], d=Infinity;
+  n.forEach(([v,l])=>{const x=Math.abs(v-r); if(x<d){d=x;b=[v,l];}});
+  return d/r < 0.02 ? b[1] : 'custom';
+}
+function cropHint(w,h){
+  const long=Math.max(w,h), short=Math.min(w,h);
+  const out=[];
+  [[3,2,'3:2'],[4,5,'4:5'],[1,1,'1:1'],[16,9,'16:9']].forEach(([a,b,l])=>{
+    const need = Math.round(short*Math.max(a,b)/Math.min(a,b));
+    if(need <= long) out.push(l);
+  });
+  return out.join(' · ') || 'tight';
+}
+
+/* ------------------------------------------------------------
+   5. INTERACTION
+------------------------------------------------------------ */
+function busy(t){ const b=$('#busy'); if(t){b.textContent=t;b.classList.add('on');} else b.classList.remove('on'); }
+
+// before anything is open, the welcome screen owns the whole window
+function setEmptyState(){
+  document.getElementById('app').classList.toggle('noshot', State.shots.length === 0);
+}
+
+const IMG_EXT = /\.(jpe?g|png|heic|heif|webp|gif|bmp|avif)$/i;
+function isImage(f){
+  // Some Android gallery providers hand over an empty MIME type, so never
+  // rely on f.type alone — fall back to the name, then just try to decode.
+  return (f.type && f.type.startsWith('image/')) || IMG_EXT.test(f.name||'') || !f.type;
+}
+
+async function load(files){
+  const list = Array.from(files).filter(isImage)
+    .sort((a,b)=> (a.name||'').localeCompare(b.name||'', undefined, {numeric:true}));
+  if(!list.length){ busy('No photos in that selection.'); setTimeout(()=>busy(''),2800); return; }
+
+  const CAP = 20000;                 // effectively no limit; frames are released as they load
+  const batch = list.slice(0, CAP);
+  State.shots.forEach(release);
+  State.shots = []; State.idx = -1; $('#strip').innerHTML=''; setEmptyState();
+
+  let done = 0;
+  for(const file of batch){
+    busy(`Reading ${++done} of ${batch.length}…`);
+    if(done % 4 === 0) await new Promise(r=>setTimeout(r,0));   // let the phone breathe
+    try{
+      const bmp = await decode(file);
+      const shot = {name:file.name, file, bmp:null, result:null, ord:State.shots.length, score:null};
+      shot.thumb = thumbUrl(bmp);
+      if(bmp.close) bmp.close();                                 // free it again straight away
+      State.shots.push(shot);
+      const th = document.createElement('img');
+      th.src = shot.thumb; th.alt = file.name; th.title = file.name;
+      th.onclick = ()=>show(State.shots.indexOf(shot));
+      $('#strip').appendChild(th);
+    }catch(err){ console.warn(file.name, err.message); }
+  }
+
+  if(!State.shots.length){
+    busy('Nothing there could be decoded. Export those frames to JPEG and try again.');
+    setTimeout(()=>busy(''),3600); return;
+  }
+  $('#drop').classList.add('hide');
+  $('#frame').hidden=false; $('#chips').hidden=false;
+  setEmptyState();
+  State.culled=false;
+  renderCullBar();
+  await show(0);
+  if(list.length > CAP) setTimeout(()=>{ busy(`Loaded the first ${CAP} of ${list.length}`); setTimeout(()=>busy(''),3000); }, 400);
+}
+
+function release(shot){
+  if(shot && shot.bmp && shot.bmp.close) shot.bmp.close();
+  if(shot) shot.bmp = null;
+}
+
+function thumbUrl(bmp){
+  const c=document.createElement('canvas');
+  const k=96/Math.max(bmp.width||bmp.naturalWidth, bmp.height||bmp.naturalHeight);
+  c.width=Math.max(1,Math.round((bmp.width||bmp.naturalWidth)*k));
+  c.height=Math.max(1,Math.round((bmp.height||bmp.naturalHeight)*k));
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',0.7);
+}
+
+async function show(i){
+  if(i<0||i>=State.shots.length) return;
+  State.idx=i; State.subject=null;
+  // every frame is read fresh — nothing about the last one may leak into it
+  State.zoomManual=false; State.zoom=1; State.shotMM=null;
+  State.kind='unknown'; State.digitalZoom=1; State.eqSource='assumed';
+  [...$('#strip').children].forEach((el,k)=>el.classList.toggle('on',k===i));
+  const shot=State.shots[i];
+  try{
+    if(!shot.bmp){ busy('Opening…'); await new Promise(r=>setTimeout(r,16)); shot.bmp = await decode(shot.file); }
+    if(!shot.result){ busy('Measuring…'); await new Promise(r=>setTimeout(r,16)); await analyse(shot); }
+  }catch(err){
+    busy('That frame could not be opened.'); setTimeout(()=>busy(''),2600); return;
+  }
+  // hold only the neighbours in memory; a phone will not carry a whole shoot
+  State.shots.forEach((s,k)=>{ if(Math.abs(k-i) > 1) release(s); });
+  busy('');
+  if(!shot.counted){ shot.counted = true; noteHabit(shot); if(!shot.score) shot.score = rate(shot.result.e, shot.result.f, null); badgeThumb(i); }
+  resetView();
+  fitCanvas(); paint(); renderLegend();
+  maybeCoffee();
+  const th = $('#strip').children[i];
+  if(th && th.scrollIntoView) th.scrollIntoView({block:'nearest', inline:'center'});
+}
+
+/* overlay chips */
+// One overlay per group. Stacking a spiral on top of thirds on top of
+// diagonals just makes a mess of the photograph.
+const OV_GROUP = {
+  focusmap:'read', peaking:'read', clip:'read', peakmark:'mark',
+  thirds:'grid', phi:'grid', spiral:'grid', diag:'grid', tri:'grid',
+  lens:'lens'
+};
+
+function syncChips(){
+  document.querySelectorAll('#chips .chip').forEach(c=>{
+    const k=c.dataset.ov; if(!k) return;
+    const on = k === 'peakmark' ? State.showPeak : State.overlays.has(k);
+    c.classList.toggle('on', on && OV_GROUP[k]!=='read');
+    c.classList.toggle('peakon', on && OV_GROUP[k]==='read');
+  });
+  $('#cyc').hidden = !(State.overlays.has('spiral')||State.overlays.has('tri'));
+  const ca = $('#chipAll');
+  if(ca){ ca.hidden = !State.overlays.has('lens'); ca.classList.toggle('on', State.lensAll); }
+}
+
+function setOverlay(k){
+  State.legendOff = null;                 // a fresh choice deserves its explanation
+  if(k === 'peakmark'){ State.showPeak = !State.showPeak; syncChips(); drawOverlays(); return; }
+  if(State.overlays.has(k)){ State.overlays.delete(k); }
+  else {
+    const g = OV_GROUP[k];
+    for(const other of [...State.overlays]) if(OV_GROUP[other]===g) State.overlays.delete(other);
+    State.overlays.add(k);
+  }
+  syncChips(); drawOverlays(); renderLegend();
+}
+
+const CHIP_TAB = {lens:'lens', thirds:'frame', phi:'frame', spiral:'frame', diag:'frame', tri:'frame',
+                 focusmap:'focus', peaking:'focus', clip:'exposure'};
+$('#chips').addEventListener('click', ev=>{
+  const b = ev.target.closest('.chip'); if(!b) return;
+  if(b.id==='cyc'){ State.orient=(State.orient+1)%4; drawOverlays(); return; }
+  if(b.id==='chipAll'){ State.lensAll=!State.lensAll; b.classList.toggle('on',State.lensAll); paint(); drawOverlays(); return; }
+  const k = b.dataset.ov;
+  setOverlay(k);
+  // take them to the panel that controls what they just switched on
+  if(State.overlays.has(k) && CHIP_TAB[k]) showTab(CHIP_TAB[k]);
+});
+
+/* subject box: drag on the photo */
+(function(){
+  let drag=null;
+  const pt = ev => {
+    const r=over.getBoundingClientRect();
+    const t = ev.touches ? ev.touches[0] : ev;
+    return {x:Math.min(1,Math.max(0,(t.clientX-r.left)/r.width)), y:Math.min(1,Math.max(0,(t.clientY-r.top)/r.height))};
+  };
+  const start = ev => { if(!State.shots[State.idx]) return; ev.preventDefault(); drag=pt(ev); drag.lens=State.overlays.has('lens'); };
+  const move = ev => {
+    if(!drag) return; ev.preventDefault();
+    const p=pt(ev);
+    if(drag.lens){ State.lensBox={cx:p.x, cy:p.y}; }
+    else State.subject={x:Math.min(drag.x,p.x),y:Math.min(drag.y,p.y),w:Math.abs(p.x-drag.x),h:Math.abs(p.y-drag.y)};
+    drawOverlays();
+  };
+  const end = () => {
+    if(!drag) return; const wasLens = drag.lens; drag=null;
+    if(!wasLens && State.subject && (State.subject.w<0.02||State.subject.h<0.02)) State.subject=null;
+    drawOverlays(); if(!wasLens) paint();
+  };
+  over.addEventListener('mousedown',start); window.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  over.addEventListener('touchstart',start,{passive:false}); over.addEventListener('touchmove',move,{passive:false}); over.addEventListener('touchend',end);
+})();
+
+/* files */
+const supportsFolders = 'webkitdirectory' in document.createElement('input')
+  && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+$('#btnOpen').onclick = $('#btnOpen2').onclick = ()=>$('#file').click();
+$('#btnFolder').onclick = $('#btnFolder2').onclick = ()=>$('#fileDir').click();
+$('#file').onchange = e=>{ load(e.target.files); e.target.value=''; };
+$('#fileDir').onchange = e=>{ load(e.target.files); e.target.value=''; };
+
+if(supportsFolders){ $('#btnFolder').hidden=false; $('#btnFolder2').hidden=false; }
+else {
+  $('#btnOpen').textContent = 'Photos';
+  const fine = document.querySelector('#drop .fine');
+  if(fine) fine.textContent = 'JPEGs from your camera roll. Nothing is uploaded — every measurement happens on this phone.';
+}
+['dragenter','dragover'].forEach(t=>$('#stage').addEventListener(t,e=>{e.preventDefault();$('#stage').classList.add('dragging');}));
+['dragleave','drop'].forEach(t=>$('#stage').addEventListener(t,e=>{e.preventDefault();$('#stage').classList.remove('dragging');}));
+$('#stage').addEventListener('drop', e=>{ if(e.dataTransfer.files.length) load(e.dataTransfer.files); });
+
+/* resolution toggle */
+$('#btnRes').onclick = async ()=>{
+  State.res = State.res==='fast' ? 'critical' : 'fast';
+  $('#btnRes').textContent = State.res==='fast' ? 'Quick scan' : 'Full detail';
+  State.shots.forEach(s=>s.result=null);
+  if(State.idx>=0) await show(State.idx);
+};
+
+/* tabs (mobile) */
+function showTab(name){
+  [...$('#tabs').children].forEach(x=>x.classList.toggle('on', x.dataset.tab===name));
+  document.querySelectorAll('.card').forEach(c=>c.classList.toggle('show', c.dataset.tab===name));
+  $('#read').scrollTop = 0;
+}
+$('#tabs').addEventListener('click', ev=>{
+  const b=ev.target.closest('button'); if(!b) return;
+  showTab(b.dataset.tab);
+});
+
+/* keyboard */
+window.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight') show(State.idx+1);
+  if(e.key==='ArrowLeft') show(State.idx-1);
+});
+/* ------------------------------------------------------------
+   THE MAKER'S MARK AND THE COFFEE
+   The banner sits at the foot of the readings, always reachable,
+   never over the photograph. The coffee is asked for ONCE, after
+   the tool has actually done some work, and never again once it
+   has been answered either way.
+------------------------------------------------------------ */
+function seen(k){ try{ return !!localStorage.getItem(k); }catch(e){ return false; } }
+function mark(k){ try{ localStorage.setItem(k,'1'); }catch(e){} }
+
+/* ------------------------------------------------------------
+   FEEDBACK
+   The most useful thing a tester can send is the frame where Loupe
+   disagreed with their eye — so that report carries the NUMBERS
+   automatically. No image is attached and nothing is uploaded; it
+   opens their own mail app with the text already written, which they
+   can read and edit before sending.
+------------------------------------------------------------ */
+function frameReport(){
+  const shot = State.shots[State.idx];
+  if(!shot || !shot.result) return '';
+  const {e,f} = shot.result;
+  const R = rate(e, f, State.subject ? subjectStats(f, State.subject) : null);
+  return [
+    `File: ${shot.name}`,
+    `Loupe said: ${R.overall.toFixed(1)} of 5  (exposure ${R.exposure.toFixed(1)}, sharpness ${R.focus===null?'n/a':R.focus.toFixed(1)})`,
+    `Clipped white ${e.clipAll.toFixed(2)}% · pure black ${e.crush.toFixed(2)}% · tones ${e.p1}-${e.p99}`,
+    `Peak acuity ${f.peak.toFixed(3)} · ${(f.frac*100).toFixed(0)}% of frame at the focus plane · ${f.regions} sharp region(s)`,
+    `Focus landed at ${(f.focusX*100).toFixed(0)}% across, ${(f.focusY*100).toFixed(0)}% down`,
+    f.hasHorizon ? `Horizon ${f.tilt.toFixed(2)}°` : 'No clear horizon',
+    `Measured at ${shot.result.anaW}px of ${shot.result.natW}x${shot.result.natH}`
+  ].join('\n');
+}
+
+function mailFeedback(kind){
+  if(!FM.feedback) return;
+  const subject = kind === 'frame' ? 'Loupe — this verdict looks wrong to me' : 'Loupe — feedback';
+  const body = kind === 'frame'
+    ? [
+        'What I see when I look at this frame:',
+        '',
+        '',
+        'What Loupe told me:',
+        frameReport(),
+        '',
+        `(${navigator.userAgent})`
+      ].join('\n')
+    : [
+        'What I was trying to do:',
+        '',
+        '',
+        'What happened instead:',
+        '',
+        '',
+        'The one thing I would change first:',
+        '',
+        '',
+        `(${navigator.userAgent})`
+      ].join('\n');
+  location.href = `mailto:${FM.feedback}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function renderColophon(){
+  const el = $('#colophon'); if(!el) return;
+  const pic = FM.photo
+    ? `<span class="mark-pic"><img src="${FM.photo}" alt=""></span>`
+    : `<span class="mark-pic"></span>`;
+  el.innerHTML = `
+    <a class="mark" href="${FM.site}" target="_blank" rel="noopener">
+      ${pic}
+      <span class="mark-txt">
+        <span class="mark-name">${FM.name}</span>
+        <span class="mark-line">${FM.line}</span>
+        <span class="mark-go">${FM.siteLabel} &rarr;</span>
+      </span>
+    </a>
+    ${FM.tipUrl && seen('loupe.coffee') ? `<a class="mark-support" href="${FM.tipUrl}" target="_blank" rel="noopener">Support Loupe &rarr;</a>` : ''}
+    ${FM.feedback ? `<a class="mark-support" href="#" id="fbLink">Send feedback &rarr;</a>` : ''}`;
+  const fl = $('#fbLink');
+  if(fl) fl.onclick = (ev)=>{ ev.preventDefault(); mailFeedback('general'); };
+}
+
+function counted(){
+  let n = 0;
+  try{ n = parseInt(localStorage.getItem('loupe.checked')||'0',10)+1; localStorage.setItem('loupe.checked',String(n)); }
+  catch(e){ n = (counted._n = (counted._n||0)+1); }
+  return n;
+}
+
+function maybeCoffee(){
+  if(!FM.tipUrl) return;                       // nothing set up yet — say nothing
+  if(seen('loupe.coffee')) return;             // already answered, once was enough
+  if(counted() < 4) return;                    // let it prove itself first
+  if($('#coffee')) return;
+
+  const box = document.createElement('div');
+  box.id = 'coffee';
+  box.innerHTML = `
+    <h4>Still free</h4>
+    <p>Loupe doesn't cost anything and won't start. If it has earned a place in how you work,
+       a coffee keeps the next version coming.</p>
+    <div class="cbtns">
+      <a class="cta" href="${FM.tipUrl}" target="_blank" rel="noopener" id="cYes">Buy me a coffee</a>
+      <button class="no" id="cNo">No thanks</button>
+    </div>`;
+  $('#read').insertBefore(box, $('#read').firstChild);
+  const done = ()=>{ mark('loupe.coffee'); box.remove(); renderColophon(); };
+  box.querySelector('#cYes').addEventListener('click', ()=>setTimeout(done, 400));
+  box.querySelector('#cNo').onclick = done;
+}
+
+renderColophon();
+setEmptyState();
+
+/* ------------------------------------------------------------
+   CULLING
+   Score every loaded frame, badge the filmstrip, and let the weak
+   ones sort to the front so they can be dealt with and forgotten.
+   Frames decode one at a time and are released again — a phone will
+   not hold a whole shoot in memory.
+------------------------------------------------------------ */
+async function scoreAll(){
+  const total = State.shots.length;
+  if(!total) return;
+  const btn = $('#btnCull'); if(btn) btn.disabled = true;
+  for(let i=0;i<total;i++){
+    const shot = State.shots[i];
+    if(!shot.score){
+      busy(`Scoring ${i+1} of ${total}\u2026`);
+      await new Promise(r=>setTimeout(r,0));
+      try{
+        const borrowed = !shot.bmp;
+        if(!shot.bmp) shot.bmp = await decode(shot.file);
+        if(!shot.result) await analyse(shot);
+        shot.score = rate(shot.result.e, shot.result.f, null);
+        noteHabit(shot);
+        if(borrowed && i !== State.idx) release(shot);
+      }catch(err){ shot.score = null; }
+    }
+    badgeThumb(i);
+  }
+  busy(''); if(btn) btn.disabled = false;
+  State.culled = true; renderCullBar(); paint();
+}
+
+function badgeThumb(i){
+  const th = $('#strip').children[i], shot = State.shots[i];
+  if(!th || !shot) return;
+  const v = shot.score ? shot.score.overall : null;
+  th.dataset.score = v === null ? '' : v.toFixed(1);
+  th.classList.toggle('weak', v !== null && v < 2.5);
+  th.classList.toggle('strong', v !== null && v >= 4);
+  th.title = `${shot.name}${v!==null?` \u2014 ${v.toFixed(1)} of 5`:''}`;
+}
+
+function rebuildStrip(){
+  const strip = $('#strip'); strip.innerHTML = '';
+  State.shots.forEach((shot,k)=>{
+    const th = document.createElement('img');
+    th.src = shot.thumb; th.alt = shot.name;
+    th.onclick = ()=>show(State.shots.indexOf(shot));
+    strip.appendChild(th); badgeThumb(k);
+  });
+}
+
+function renderCullBar(){
+  const bar = $('#cullbar'); if(!bar) return;
+  if(State.shots.length < 2){ bar.innerHTML=''; bar.hidden = true; return; }
+  bar.hidden = false;
+  const scored = State.shots.filter(s=>s.score);
+  if(!State.culled || !scored.length){
+    bar.innerHTML = `<button class="btn" id="btnCull">Score all ${State.shots.length}</button>
+      <span class="cullnote">Rates the whole shoot so you can cull it in one pass.</span>`;
+    const b = $('#btnCull'); if(b) b.onclick = scoreAll;
+    return;
+  }
+  const weak = scored.filter(s=>s.score.overall < 2.5).length;
+  const strong = scored.filter(s=>s.score.overall >= 4).length;
+  bar.innerHTML = `
+    <span class="cullstat"><b>${scored.length}</b> scored</span>
+    <span class="cullstat strongtxt"><b>${strong}</b> strong</span>
+    <span class="cullstat weaktxt"><b>${weak}</b> weak</span>
+    <span class="cullspacer"></span>
+    <button class="btn primary" id="btnReview">Review &amp; sort</button>
+    <button class="btn" id="sortWorst">Worst first</button>
+    <button class="btn" id="sortBest">Best first</button>
+    <button class="btn" id="sortOrig">Shot order</button>`;
+  const reorder = (cmp)=>{
+    const cur = State.shots[State.idx];
+    State.shots.sort(cmp); rebuildStrip();
+    State.idx = State.shots.indexOf(cur);
+    [...$('#strip').children].forEach((el,k)=>el.classList.toggle('on',k===State.idx));
+  };
+  const rb = $('#btnReview'); if(rb) rb.onclick = openReview;
+  $('#sortWorst').onclick = ()=>reorder((a,b)=>(a.score?a.score.overall:9)-(b.score?b.score.overall:9));
+  $('#sortBest').onclick  = ()=>reorder((a,b)=>(b.score?b.score.overall:0)-(a.score?a.score.overall:0));
+  $('#sortOrig').onclick  = ()=>reorder((a,b)=>a.ord-b.ord);
+}
+
+/* ------------------------------------------------------------
+   REVIEW AND SORT
+   Loupe proposes, the photographer decides, and nothing is ever
+   deleted. Frames are COPIED into two new folders; the originals stay
+   exactly where they were, so a bad threshold costs nothing.
+------------------------------------------------------------ */
+function rvDefault(shot){
+  return shot.score ? shot.score.overall >= State.thresh : true;   // unscored is kept
+}
+function rvDecision(shot){
+  return shot.keep === undefined ? rvDefault(shot) : shot.keep;
+}
+
+function openReview(){
+  const scored = State.shots.filter(s=>s.score);
+  if(!scored.length) return;
+  $('#review').hidden = false;
+  renderReview();
+}
+
+function renderReview(){
+  const grid = $('#rvGrid'); if(!grid) return;
+  const keep = State.shots.filter(rvDecision).length;
+  const drop = State.shots.length - keep;
+  const overridden = State.shots.filter(s=>s.keep !== undefined && s.keep !== rvDefault(s)).length;
+  $('#rvCount').textContent =
+    `${State.shots.length} frames · ${keep} to keep · ${drop} to set aside` +
+    (overridden ? ` · ${overridden} overruled by you` : '');
+
+  grid.innerHTML = '';
+  State.shots.forEach((shot,i)=>{
+    const k = rvDecision(shot);
+    const over = shot.keep !== undefined && shot.keep !== rvDefault(shot);
+    const el = document.createElement('button');
+    el.className = 'rv-item ' + (k ? 'keep' : 'drop') + (over ? ' over' : '');
+    el.innerHTML = `
+      <img src="${shot.thumb}" alt="">
+      <span class="rv-meta">
+        <span class="rv-name">${shot.name}</span>
+        <span class="rv-score">${shot.score ? shot.score.overall.toFixed(1) : '—'}<span style="font-size:11px;color:var(--dimmer)"> / 5</span></span>
+        <span class="rv-tag">${k ? 'keep' : 'set aside'}</span>
+      </span>`;
+    el.onclick = ()=>{ shot.keep = !rvDecision(shot); renderReview(); };
+    grid.appendChild(el);
+  });
+}
+
+function rvCsv(){
+  const rows = [['file','overall','exposure','sharpness','decision']];
+  State.shots.forEach(s=>rows.push([
+    '"'+String(s.name).replace(/"/g,'""')+'"',
+    s.score ? s.score.overall.toFixed(1) : '',
+    s.score ? s.score.exposure.toFixed(1) : '',
+    s.score && s.score.focus !== null ? s.score.focus.toFixed(1) : '',
+    rvDecision(s) ? 'keep' : 'set aside'
+  ]));
+  const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'loupe-cull.csv';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+async function rvExport(){
+  if(!window.showDirectoryPicker){
+    busy('This browser can\u2019t write folders. Use Chrome or Edge on a computer, or download the list instead.');
+    setTimeout(()=>busy(''), 5200);
+    return;
+  }
+  let dir;
+  try{ dir = await window.showDirectoryPicker({mode:'readwrite'}); }
+  catch(err){ return; }                                   // they cancelled
+
+  const btn = $('#rvExport');
+  if(btn) btn.disabled = true;
+  try{
+    const keepDir = await dir.getDirectoryHandle('Loupe Keep', {create:true});
+    const dropDir = await dir.getDirectoryHandle('Loupe Set Aside', {create:true});
+    let done = 0, failed = 0;
+    for(const shot of State.shots){
+      const target = rvDecision(shot) ? keepDir : dropDir;
+      try{
+        const fh = await target.getFileHandle(shot.name, {create:true});
+        const w = await fh.createWritable();
+        await w.write(shot.file);                          // a COPY — original untouched
+        await w.close();
+        done++;
+      }catch(err){ failed++; }
+      if(done % 5 === 0) $('#rvCount').textContent = `Copying ${done} of ${State.shots.length}\u2026`;
+    }
+    $('#rvCount').textContent =
+      `Copied ${done} frames into "Loupe Keep" and "Loupe Set Aside". Your originals are untouched.` +
+      (failed ? ` ${failed} could not be written.` : '');
+  }catch(err){
+    $('#rvCount').textContent = 'Could not write to that folder. Pick one you have permission to change.';
+  }
+  if(btn) btn.disabled = false;
+}
+
+/* ------------------------------------------------------------
+   LOCAL LEARNING — stays on the device. Counts what keeps happening
+   and reports the habit back, which is the thing no photographer can
+   see from inside their own work.
+------------------------------------------------------------ */
+const H_KEY = 'loupe.habits';
+function loadHabits(){ try{ return JSON.parse(localStorage.getItem(H_KEY)) || {n:0}; }catch(e){ return {n:0}; } }
+function saveHabits(h){ try{ localStorage.setItem(H_KEY, JSON.stringify(h)); }catch(e){} }
+
+function noteHabit(shot){
+  if(!shot.result) return;
+  const {e,f} = shot.result;
+  const h = loadHabits();
+  const bump = k => h[k] = (h[k]||0)+1;
+  h.n = (h.n||0)+1;
+  if(e.clipAll > 0.4) bump('clip');
+  if(e.crush > 1.5) bump('crush');
+  if(e.chanClip > 1.5 && e.chanClip > e.clipAll*3) bump('chan');
+  if(e.p95 < 175 && e.mean < 85) bump('under');
+  if(e.p95 > 235 && e.clipAll < 0.15) bump('ettr');
+  if(f.valid >= 6){
+    if(f.peak < 0.58) bump('soft');
+    if(f.aniso > 1.75) bump('shake');
+    if(f.frac < 0.18) bump('shallow');
+    if(f.hasHorizon){
+      bump('horiz');
+      if(Math.abs(f.tilt) >= 0.5) bump('tilted');
+      h.tiltSum = (h.tiltSum||0) + f.tilt;
+    }
+    const fits = compositionFits(f, shot.result.natW/shot.result.natH);
+    bump('fit_'+fits[0].key);
+  }
+  saveHabits(h);
+}
+
+function habitReport(){
+  const h = loadHabits();
+  if(!h.n || h.n < 8) return null;
+  const pct = k => Math.round(100*(h[k]||0)/h.n);
+  const out = [];
+  const names = {thirds:'rule of thirds', phi:'golden ratio', spiral:'golden spiral',
+                 diag:'diagonal method', tri:'golden triangles', centre:'centred and symmetrical'};
+  let bk=null, bv=0;
+  Object.keys(names).forEach(k=>{ const v=h['fit_'+k]||0; if(v>bv){bv=v;bk=k;} });
+  if(bk && bv/h.n > 0.4) out.push(`You build ${Math.round(100*bv/h.n)}% of your frames on the ${names[bk]}. Worth knowing \u2014 it is exactly the kind of habit nobody can see in their own work.`);
+  if(pct('clip') > 25) out.push(`${pct('clip')}% of your frames clip the highlights. A standing \u22121/3 stop of exposure compensation would fix most of that.`);
+  if(pct('chan') > 25) out.push(`${pct('chan')}% clip one colour channel while the overall exposure looks fine. Switch your camera to the RGB histogram and it will stop catching you out.`);
+  if(pct('under') > 25) out.push(`${pct('under')}% come in underexposed \u2014 you may be trusting the meter in scenes it reads badly.`);
+  if(pct('shake') > 20) out.push(`${pct('shake')}% show directional blur. Your handheld shutter floor is probably a stop higher than you think.`);
+  if(pct('soft') > 20) out.push(`${pct('soft')}% have nothing critically sharp anywhere in them.`);
+  if(pct('ettr') > 50) out.push(`${pct('ettr')}% are exposed right to the edge without losing anything. That is hard to do consistently.`);
+  if((h.horiz||0) > 4 && (h.tilted||0)/h.horiz > 0.3){
+    const lean = (h.tiltSum||0) > 0 ? 'right' : 'left';
+    out.push(`You tilt ${Math.round(100*(h.tilted||0)/h.horiz)}% of your horizons, consistently down to the ${lean}. That is a body-position habit rather than bad luck \u2014 turn the electronic level on.`);
+  }
+  if(pct('shallow') > 55) out.push(`${pct('shallow')}% are shot with very shallow depth. Deliberate, presumably \u2014 but it means a small focus error costs you the whole frame.`);
+  return out.length ? {n:h.n, out} : null;
+}
+
+/* ------------------------------------------------------------
+   ZOOM
+   A phone screen is small and 100% detail is the whole point of a
+   sharpness tool. Two fingers pinch and pan; one finger is left alone
+   so the subject box and lens frame still work. Desktop uses the wheel.
+------------------------------------------------------------ */
+const View = {s:1, x:0, y:0};
+const MAXZ = 8;
+
+function applyView(){
+  const fr = $('#frame'); if(!fr) return;
+  const st = $('#stage');
+  if(View.s <= 1.001){ View.s = 1; View.x = 0; View.y = 0; }
+  else if(st){
+    // never let the picture be dragged entirely off screen
+    const r = fr.getBoundingClientRect(), sr = st.getBoundingClientRect();
+    const w = r.width / (View.s || 1), h = r.height / (View.s || 1);
+    const maxX = Math.max(0, (w*View.s - sr.width)/2 + w*0.25);
+    const maxY = Math.max(0, (h*View.s - sr.height)/2 + h*0.25);
+    View.x = Math.max(-maxX, Math.min(maxX, View.x));
+    View.y = Math.max(-maxY, Math.min(maxY, View.y));
+  }
+  fr.style.transform = `translate(${View.x}px, ${View.y}px) scale(${View.s})`;
+  fr.style.transformOrigin = 'center center';
+  const btn = $('#unzoom');
+  if(btn){
+    btn.hidden = View.s <= 1.001;
+    const lbl = $('#zoomlbl');
+    if(lbl) lbl.textContent = View.s.toFixed(1) + '×';
+  }
+}
+
+function zoomAt(factor){
+  View.s = Math.max(1, Math.min(MAXZ, View.s * factor));
+  applyView();
+}
+
+function resetView(){ View.s=1; View.x=0; View.y=0; applyView(); }
+
+(function(){
+  const st = $('#stage'); if(!st) return;
+  let pinch = null;
+
+  const dist = t => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  const mid  = t => ({x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2});
+
+  st.addEventListener('touchstart', ev=>{
+    if(ev.touches.length === 2){
+      ev.preventDefault();
+      const t = ev.touches;
+      pinch = {d: dist(t), m: mid(t), s: View.s, x: View.x, y: View.y};
+    }
+  }, {passive:false});
+
+  st.addEventListener('touchmove', ev=>{
+    if(pinch && ev.touches.length === 2){
+      ev.preventDefault();
+      const t = ev.touches, d = dist(t), m = mid(t);
+      View.s = Math.max(1, Math.min(MAXZ, pinch.s * (d / (pinch.d||1))));
+      View.x = pinch.x + (m.x - pinch.m.x);
+      View.y = pinch.y + (m.y - pinch.m.y);
+      applyView();
+    }
+  }, {passive:false});
+
+  st.addEventListener('touchend', ev=>{ if(ev.touches.length < 2) pinch = null; });
+
+  // desktop: wheel zooms, drag with the middle button pans
+  st.addEventListener('wheel', ev=>{
+    if(!State.shots.length) return;
+    ev.preventDefault();
+    zoomAt(ev.deltaY < 0 ? 1.12 : 1/1.12);
+  }, {passive:false});
+
+  let mpan = null;
+  st.addEventListener('mousedown', ev=>{ if(ev.button === 1){ ev.preventDefault(); mpan = {x:ev.clientX-View.x, y:ev.clientY-View.y}; } });
+  window.addEventListener('mousemove', ev=>{ if(mpan){ View.x = ev.clientX-mpan.x; View.y = ev.clientY-mpan.y; applyView(); } });
+  window.addEventListener('mouseup', ()=>{ mpan = null; });
+
+  // double tap / double click snaps between fit and 3x
+  let lastTap = 0;
+  st.addEventListener('touchend', ev=>{
+    if(ev.touches.length) return;
+    const now = Date.now();
+    if(now - lastTap < 300){ View.s = View.s > 1.5 ? 1 : 3; View.x=0; View.y=0; applyView(); }
+    lastTap = now;
+  });
+  st.addEventListener('dblclick', ()=>{ View.s = View.s > 1.5 ? 1 : 3; View.x=0; View.y=0; applyView(); });
+
+  const ub = $('#unzoom');
+  if(ub) ub.onclick = resetView;
+})();
+
+/* ------------------------------------------------------------
+   SHARED-IN PHOTOS
+   The field path: shoot, send the JPEG to your phone from the camera's
+   own app, then Share -> Loupe. The service worker catches the POST and
+   stashes the files; this collects them. Hosted version only — a local
+   file has no service worker to catch anything.
+------------------------------------------------------------ */
+async function pickupShared(){
+  if(!/[?&]shared=/.test(location.search) || !('caches' in window)) return;
+  try{
+    busy('Receiving\u2026');
+    const cache = await caches.open('loupe-share');
+    const keys = await cache.keys();
+    const files = [];
+    for(const req of keys){
+      const res = await cache.match(req); if(!res) continue;
+      const blob = await res.blob();
+      let name = 'shared.jpg';
+      try{ name = decodeURIComponent(res.headers.get('X-Filename') || name); }catch(e){}
+      files.push(new File([blob], name, {type: blob.type || 'image/jpeg'}));
+      await cache.delete(req);
+    }
+    history.replaceState(null, '', location.pathname);
+    if(files.length) await load(files); else busy('');
+  }catch(err){ busy(''); }
+}
+if(/[?&]shared=/.test(location.search)) window.addEventListener('load', pickupShared);
+
+(function(){
+  const c = $('#rvClose');  if(c) c.onclick = ()=>{ $('#review').hidden = true; };
+  const x = $('#rvCsv');    if(x) x.onclick = rvCsv;
+  const e = $('#rvExport'); if(e) e.onclick = rvExport;
+  const t = $('#rvThresh');
+  if(t) t.onchange = ()=>{ State.thresh = parseFloat(t.value); renderReview(); };
+})();
+
+/* ---------- installable app plumbing ---------- */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredPrompt = e; $('#btnInstall').hidden = false;
+});
+$('#btnInstall').onclick = async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt = null; $('#btnInstall').hidden = true;
+};
+window.addEventListener('appinstalled', ()=>{ $('#btnInstall').hidden = true; });
+(function(){
+  const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  if(iOS && !standalone && location.protocol.startsWith('http')){
+    const p = document.createElement('p');
+    p.className = 'note'; p.style.marginTop = '14px';
+    p.textContent = 'To keep Loupe on your home screen: Share \u25b8 Add to Home Screen.';
+    $('#drop').appendChild(p);
+  }
+})();
+(function(){
+  let opened = 0;
+  const wrap = () => { opened = Date.now(); };
+  $('#btnOpen').addEventListener('click', wrap);
+  $('#btnOpen2').addEventListener('click', wrap);
+  window.addEventListener('focus', ()=>{
+    if(!opened || State.shots.length) return;
+    const gap = Date.now() - opened; opened = 0;
+    if(gap < 600){
+      busy('The picker did not open. If this page is inside another app, open it in Chrome or Safari instead.');
+      setTimeout(()=>busy(''), 5200);
+    }
+  });
+})();
+
+let rt; window.addEventListener('resize', ()=>{clearTimeout(rt); rt=setTimeout(()=>{fitCanvas();
+  const s=State.shots[State.idx]; if(s&&s.result){ plotHistogram($('#hist'),s.result.e); plotProfile($('#prof'),s.result.f); }},140);});
+</script>
 </body>
 </html>
