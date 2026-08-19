@@ -1,7 +1,7 @@
 /* Loupe service worker.
    Caches the whole app on first visit so it opens offline afterwards.
    Bump CACHE when you ship a change, or phones will keep the old build. */
-const CACHE = 'loupe-v28';
+const CACHE = 'loupe-v33';
 const ASSETS = [
   './',
   './index.html',

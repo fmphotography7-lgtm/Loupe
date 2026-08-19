@@ -23,9 +23,10 @@
   --dim:#8B8F99;
   --dimmer:#5F636D;
   --gray18:#7C7C80;
-  --peak:#FF3D71;
+  --peak:#8ECAE6;        /* Frozen Moments ice blue */
+  --on-peak:#0B1A20;     /* text that sits ON the accent */
   --zebra:#FFC24B;
-  --cool:#57D4F0;
+  --cool:#B98CF0;        /* shadow warning — never the accent */
   --ok:#6FD08C;
   --display:'Barlow Condensed','Oswald','Roboto Condensed','Haettenschweiler','Arial Narrow',system-ui,sans-serif;
   --body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
@@ -51,9 +52,9 @@ header{
 }
 .wordmark{
   font-family:var(--display);text-transform:uppercase;
-  font-size:22px;letter-spacing:.22em;font-weight:600;line-height:1;
+  font-size:23px;letter-spacing:.02em;font-weight:700;line-height:1;
+  text-transform:none;font-family:system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
 }
-.wordmark span{color:var(--peak)}
 .tag{font-family:var(--mono);font-size:10px;color:var(--dimmer);letter-spacing:.08em;text-transform:uppercase}
 header .spacer{flex:1}
 
@@ -63,7 +64,7 @@ header .spacer{flex:1}
   background:var(--panel2);border-radius:2px;white-space:nowrap;
 }
 .btn:hover{border-color:var(--dimmer)}
-.btn.primary{background:var(--peak);border-color:var(--peak);color:#12070C;font-weight:600}
+.btn.primary{background:var(--peak);border-color:var(--peak);color:var(--on-peak);font-weight:700}
 
 /* ---------- main split ---------- */
 main{flex:1;display:flex;min-height:0}
@@ -98,7 +99,7 @@ main{flex:1;display:flex;min-height:0}
 #app.noshot #read{display:none}
 #app.noshot #stage{flex:1 1 auto;height:auto}
 #app.noshot #chips{display:none}
-.logo{width:26px;height:26px;flex:0 0 auto;color:var(--text)}
+.logo{width:28px;height:28px;flex:0 0 auto}
 .logo.big{width:58px;height:58px;margin-bottom:2px}
 #drop .pitch{max-width:44ch;font-size:14px;color:var(--text)}
 #drop .fine{color:var(--dimmer);font-size:11.5px;max-width:40ch;margin:2px 0 0}
@@ -185,7 +186,7 @@ main{flex:1;display:flex;min-height:0}
   border-radius:2px;backdrop-filter:blur(6px);
 }
 .chip.on{background:var(--text);color:var(--ink);border-color:var(--text);font-weight:600}
-.chip.peakon{background:var(--peak);border-color:var(--peak);color:#12070C;font-weight:600}
+.chip.peakon{background:var(--peak);border-color:var(--peak);color:var(--on-peak);font-weight:700}
 
 /* ---------- readouts ---------- */
 #read{
@@ -233,7 +234,7 @@ canvas.strip{height:38px}
 .fitbar i{display:block;height:100%;background:linear-gradient(90deg,#4A5A6B,var(--zebra));border-radius:3px}
 .fitpct{flex:0 0 34px;text-align:right;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
 .seg.lenses button{font-family:var(--display);font-size:14px;letter-spacing:.08em;padding:9px 13px;color:var(--text)}
-.seg.lenses button.on{background:var(--peak);border-color:var(--peak);color:#12070C;font-weight:700}
+.seg.lenses button.on{background:var(--peak);border-color:var(--peak);color:var(--on-peak);font-weight:700}
 
 /* stars and the verdict */
 .stars{position:relative;display:inline-block;font-size:17px;letter-spacing:3px;line-height:1;vertical-align:-2px}
@@ -290,7 +291,7 @@ canvas.strip{height:38px}
 #coffee .cbtns{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}
 #coffee a.cta{
   font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:13px;
-  padding:8px 15px;background:var(--zebra);color:#20170A;border-radius:2px;
+  padding:8px 15px;background:var(--peak);color:var(--on-peak);border-radius:2px;
   text-decoration:none;font-weight:700;
 }
 #coffee button.no{
@@ -328,7 +329,7 @@ canvas.strip{height:38px}
 .rv-item .rv-tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:3px;display:block}
 .rv-item.keep{border-color:rgba(111,208,140,.75)}
 .rv-item.keep .rv-tag{color:var(--ok)}
-.rv-item.drop{border-color:rgba(255,61,113,.6)}
+.rv-item.drop{border-color:rgba(142,202,230,.6)}
 .rv-item.drop img{opacity:.4}
 .rv-item.drop .rv-tag{color:var(--peak)}
 .rv-item.over .rv-tag:after{content:' · your call';color:var(--zebra)}
@@ -397,8 +398,8 @@ canvas.strip{height:38px}
 <div id="app">
 
 <header>
-  <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/><circle cx="20" cy="20" r="9" fill="none" stroke="var(--peak)" stroke-width="2.2"/><g stroke="var(--peak)" stroke-width="2.2" stroke-linecap="round"><path d="M20 2.5v4M20 33.5v4M2.5 20h4M33.5 20h4"/></g></svg>
-  <div class="wordmark">Lou<span>p</span>e</div>
+  <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="-69.0 10.7 277.0 277.0" aria-hidden="true"><defs><clipPath id="lp"><circle cx="112.0" cy="112.0" r="77.0"/></clipPath></defs><line x1="30.1" y1="188.4" x2="-46.0" y2="259.3" stroke="#02060A" stroke-width="46.0" stroke-linecap="round"/><line x1="25.7" y1="192.5" x2="-43.0" y2="256.6" stroke="#286686" stroke-width="38.0" stroke-linecap="round"/><line x1="33.0" y1="185.7" x2="24.2" y2="193.8" stroke="#02060A" stroke-width="46.0" stroke-linecap="butt"/><line x1="49.1" y1="170.7" x2="30.1" y2="188.4" stroke="#FFFFFF" stroke-width="38.0" stroke-linecap="butt"/><g clip-path="url(#lp)"><circle cx="112.0" cy="112.0" r="77.0" fill="#02060A"/><path d="M 115.19 54.09 A 58.00 58.00 0 0 1 160.56 80.28 L 132.25 113.43 Z" fill="#96CDE2"/><path d="M 163.75 85.81 A 58.00 58.00 0 0 1 163.75 138.19 L 120.88 130.25 Z" fill="#427F9C"/><path d="M 160.56 143.72 A 58.00 58.00 0 0 1 115.19 169.91 L 100.63 128.82 Z" fill="#96CDE2"/><path d="M 108.81 169.91 A 58.00 58.00 0 0 1 63.44 143.72 L 91.75 110.57 Z" fill="#2E5C72"/><path d="M 60.25 138.19 A 58.00 58.00 0 0 1 60.25 85.81 L 103.12 93.75 Z" fill="#96CDE2"/><path d="M 63.44 80.28 A 58.00 58.00 0 0 1 108.81 54.09 L 123.37 95.18 Z" fill="#427F9C"/></g><circle cx="112.0" cy="112.0" r="86.5" fill="none" stroke="#FFFFFF" stroke-width="19.0"/></svg>
+  <div class="wordmark">Loupe</div>
   <div class="tag">frame check</div>
   <div class="spacer"></div>
   <button class="btn" id="btnRes" title="How closely Loupe looks. Quick scan reads a 1700px version — fine for exposure, framing and finding the focus plane. Full detail reads 3200px, slower, and is the only setting that can judge critical sharpness.">Quick scan</button>
@@ -433,7 +434,7 @@ canvas.strip{height:38px}
 
 
     <div id="drop">
-      <svg class="logo big" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/><circle cx="20" cy="20" r="9" fill="none" stroke="var(--peak)" stroke-width="2.2"/><g stroke="var(--peak)" stroke-width="2.2" stroke-linecap="round"><path d="M20 2.5v4M20 33.5v4M2.5 20h4M33.5 20h4"/></g></svg>
+      <svg class="logo big" xmlns="http://www.w3.org/2000/svg" viewBox="-69.0 10.7 277.0 277.0" aria-hidden="true"><defs><clipPath id="lp2"><circle cx="112.0" cy="112.0" r="77.0"/></clipPath></defs><line x1="30.1" y1="188.4" x2="-46.0" y2="259.3" stroke="#02060A" stroke-width="46.0" stroke-linecap="round"/><line x1="25.7" y1="192.5" x2="-43.0" y2="256.6" stroke="#286686" stroke-width="38.0" stroke-linecap="round"/><line x1="33.0" y1="185.7" x2="24.2" y2="193.8" stroke="#02060A" stroke-width="46.0" stroke-linecap="butt"/><line x1="49.1" y1="170.7" x2="30.1" y2="188.4" stroke="#FFFFFF" stroke-width="38.0" stroke-linecap="butt"/><g clip-path="url(#lp2)"><circle cx="112.0" cy="112.0" r="77.0" fill="#02060A"/><path d="M 115.19 54.09 A 58.00 58.00 0 0 1 160.56 80.28 L 132.25 113.43 Z" fill="#96CDE2"/><path d="M 163.75 85.81 A 58.00 58.00 0 0 1 163.75 138.19 L 120.88 130.25 Z" fill="#427F9C"/><path d="M 160.56 143.72 A 58.00 58.00 0 0 1 115.19 169.91 L 100.63 128.82 Z" fill="#96CDE2"/><path d="M 108.81 169.91 A 58.00 58.00 0 0 1 63.44 143.72 L 91.75 110.57 Z" fill="#2E5C72"/><path d="M 60.25 138.19 A 58.00 58.00 0 0 1 60.25 85.81 L 103.12 93.75 Z" fill="#96CDE2"/><path d="M 63.44 80.28 A 58.00 58.00 0 0 1 108.81 54.09 L 123.37 95.18 Z" fill="#427F9C"/></g><circle cx="112.0" cy="112.0" r="86.5" fill="none" stroke="#FFFFFF" stroke-width="19.0"/></svg>
       <h2 id="dropTitle">Is this frame good enough?</h2>
       <p class="pitch">Open a photograph and Loupe measures the four things that decide it — then tells you what to change.</p>
 
@@ -1461,7 +1462,7 @@ const LEGENDS = {
   clip: `
     <h5>Clipping</h5>
     <p><span class="swatch" style="background:rgb(255,194,75)"></span><b>Amber stripes</b> mark pure white &mdash; every scrap of highlight detail is gone, and no slider will bring it back.</p>
-    <p><span class="swatch" style="background:rgb(87,212,240)"></span><b>Blue stripes</b> mark pure black, with no separation left in the shadow.</p>
+    <p><span class="swatch" style="background:rgb(185,140,240)"></span><b>Violet stripes</b> mark pure black, with no separation left in the shadow.</p>
     <p>A little amber on the sun itself, or on glints off water, is normal and worth ignoring. Amber across cloud, snow or skin is the one to reshoot.</p>`
 };
 
@@ -1586,7 +1587,7 @@ function drawLensCompare(cx,W,H,lw){
     let x=c.cx*W-bw/2, y=c.cy*H-bh/2;
     x=Math.max(0,Math.min(W-bw,x)); y=Math.max(0,Math.min(H-bh,y));
     const chosen = d.L === State.lensMM;
-    cx.strokeStyle = chosen ? 'rgba(255,61,113,.98)' : 'rgba(255,255,255,.55)';
+    cx.strokeStyle = chosen ? 'rgba(142,202,230,.98)' : 'rgba(255,255,255,.55)';
     cx.lineWidth = chosen ? lw*2.4 : lw;
     cx.setLineDash(chosen ? [] : [lw*4, lw*3]);
     cx.strokeRect(x,y,bw,bh);
@@ -1594,9 +1595,9 @@ function drawLensCompare(cx,W,H,lw){
     const label = `${d.L}mm`;
     const tw = cx.measureText(label).width;
     const ly = Math.max(W/80, y + W/80);
-    cx.fillStyle = chosen ? 'rgba(255,61,113,.95)' : 'rgba(8,9,11,.8)';
+    cx.fillStyle = chosen ? 'rgba(142,202,230,.95)' : 'rgba(8,9,11,.8)';
     cx.fillRect(x+lw, ly - W/110, tw + W/90, W/55);
-    cx.fillStyle = chosen ? '#12070C' : 'rgba(255,255,255,.85)';
+    cx.fillStyle = chosen ? '#0B1A20' : 'rgba(255,255,255,.85)';
     cx.fillText(label, x+lw+W/180, ly + W/220);
   });
 
@@ -1615,7 +1616,7 @@ function drawLensBox(cx,W,H,lw){
   const c = State.lensBox || {cx:.5, cy:.5};
   if(p.tooWide){
     // the requested lens is wider than the phone saw — nothing to crop to
-    cx.strokeStyle='rgba(255,61,113,.9)'; cx.setLineDash([lw*6,lw*5]); cx.lineWidth=lw*2;
+    cx.strokeStyle='rgba(142,202,230,.9)'; cx.setLineDash([lw*6,lw*5]); cx.lineWidth=lw*2;
     cx.strokeRect(lw,lw,W-2*lw,H-2*lw); cx.setLineDash([]);
     return;
   }
@@ -1632,7 +1633,7 @@ function drawLensBox(cx,W,H,lw){
   cx.strokeRect(x,y,bw,bh);
   // corner marks, like a viewfinder
   const m = Math.min(bw,bh)*0.12;
-  cx.strokeStyle='rgba(255,61,113,.95)'; cx.lineWidth=lw*2.6; cx.beginPath();
+  cx.strokeStyle='rgba(142,202,230,.95)'; cx.lineWidth=lw*2.6; cx.beginPath();
   [[x,y,1,1],[x+bw,y,-1,1],[x,y+bh,1,-1],[x+bw,y+bh,-1,-1]].forEach(([px,py,sx,sy])=>{
     cx.moveTo(px+sx*m,py); cx.lineTo(px,py); cx.lineTo(px,py+sy*m);
   });
@@ -1720,7 +1721,7 @@ function drawClipping(cx,W,H,shot){
       if(((x+y)>>2)&1){ out.data[o]=255;out.data[o+1]=194;out.data[o+2]=75;out.data[o+3]=235; }
     } else if(r<=2&&g<=2&&b<=2){
       const x=i%w, y=(i/w)|0;
-      if(((x-y)>>2)&1){ out.data[o]=87;out.data[o+1]=212;out.data[o+2]=240;out.data[o+3]=200; }
+      if(((x-y)>>2)&1){ out.data[o]=185;out.data[o+1]=140;out.data[o+2]=240;out.data[o+3]=205; }
     }
   }
   const t=document.createElement('canvas'); t.width=w; t.height=h;
@@ -1825,7 +1826,7 @@ function plotHistogram(el,e){
   chan(e.L,'rgba(230,232,236,.30)');
   // clipping flags at the ends
   if(e.clipAll>0.1){cx.fillStyle='rgba(255,194,75,.95)';cx.fillRect(W-3*dpr,0,3*dpr,H);}
-  if(e.crush>0.5){cx.fillStyle='rgba(87,212,240,.95)';cx.fillRect(0,0,3*dpr,H);}
+  if(e.crush>0.5){cx.fillStyle='rgba(185,140,240,.95)';cx.fillRect(0,0,3*dpr,H);}
 }
 
 function plotProfile(el,f){
@@ -1842,7 +1843,7 @@ function plotProfile(el,f){
     const x=W*i/(n-1), y=H-Math.min(1,p[i])*H*0.9-H*0.05;
     started?cx.lineTo(x,y):(cx.moveTo(x,y),started=true);
   }
-  cx.strokeStyle='rgba(255,61,113,.95)'; cx.lineWidth=2*dpr; cx.stroke();
+  cx.strokeStyle='rgba(142,202,230,.95)'; cx.lineWidth=2*dpr; cx.stroke();
 }
 
 function panel(id, fn){
