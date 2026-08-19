@@ -129,6 +129,22 @@ main{flex:1;display:flex;min-height:0}
 }
 #busy.on{display:block}
 
+#scout{position:absolute;inset:0;z-index:9;background:#000;display:flex;flex-direction:column}
+#scout[hidden]{display:none}
+#scoutVid{flex:1;width:100%;min-height:0;object-fit:contain;background:#000}
+#scoutOv{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none}
+#scoutBar{
+  position:relative;z-index:3;display:flex;align-items:center;gap:8px;
+  padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));
+  background:var(--panel);border-top:1px solid var(--line);flex:0 0 auto;
+}
+#scoutBar .spacer{flex:1}
+#scoutNote{
+  position:absolute;z-index:2;left:10px;right:10px;bottom:72px;margin:0;
+  font-size:11.5px;line-height:1.4;color:var(--dim);
+  background:rgba(10,11,13,.84);border-radius:3px;padding:7px 10px;
+}
+
 #unzoom{
   position:absolute;z-index:7;right:12px;bottom:12px;
   font-family:var(--mono);font-size:12px;letter-spacing:.04em;
@@ -403,6 +419,7 @@ canvas.strip{height:38px}
   <div class="tag">frame check</div>
   <div class="spacer"></div>
   <button class="btn" id="btnRes" title="How closely Loupe looks. Quick scan reads a 1700px version — fine for exposure, framing and finding the focus plane. Full detail reads 3200px, slower, and is the only setting that can judge critical sharpness.">Quick scan</button>
+  <button class="btn" id="btnScout" hidden>Scout</button>
   <button class="btn" id="btnInstall" hidden>Install</button>
   <button class="btn" id="btnFolder" hidden>Folder</button>
   <button class="btn primary" id="btnOpen">Photos</button>
@@ -452,6 +469,17 @@ canvas.strip{height:38px}
       <p class="fine">JPEGs. Nothing is uploaded — every measurement happens on this device.</p>
     </div>
 
+    <div id="scout" hidden>
+      <video id="scoutVid" playsinline muted></video>
+      <canvas id="scoutOv"></canvas>
+      <p id="scoutNote">Live view shows framing and light only. Sharpness needs a captured frame &mdash; a preview stream is far too coarse to judge it.</p>
+      <div id="scoutBar">
+        <button class="btn" id="scoutClose">Close</button>
+        <span class="spacer"></span>
+        <button class="btn" id="scoutZeb">Clipping</button>
+        <button class="btn primary" id="scoutShot">Capture &amp; check</button>
+      </div>
+    </div>
     <button id="unzoom" hidden title="Back to fit">⤢ <span id="zoomlbl">1.0×</span></button>
     <div id="busy">Reading…</div>
   </div>
@@ -1162,6 +1190,69 @@ function fixes(e, f, sub){
 function starsHTML(v){
   if(v === null) return '<span class="stars"><span class="sdim">not measurable</span></span>';
   return `<span class="stars"><span class="sback">★★★★★</span><span class="sfill" style="width:${v/5*100}%">★★★★★</span></span>`;
+}
+
+/* ------------------------------------------------------------
+   EXPOSURE TRANSLATION
+   A phone photograph carries the meter reading in its EXIF: aperture,
+   shutter and ISO. Those three give the scene's EV100, and from EV100
+   any other camera's settings follow. So the phone becomes a light
+   meter you already own.
+------------------------------------------------------------ */
+function ev100From(ex){
+  if(!ex) return null;
+  const N = ex.fNumber, t = ex.exposureTime, iso = ex.iso;
+  if(!(N > 0 && t > 0 && iso > 0)) return null;
+  return Math.log2((N*N)/t) - Math.log2(iso/100);
+}
+const shutterAt = (ev, N, iso) => (N*N) / (Math.pow(2,ev) * iso/100);
+
+function evWords(ev){
+  if(ev >= 14.5) return 'bright sun';
+  if(ev >= 13)   return 'hazy sun';
+  if(ev >= 11.5) return 'bright overcast';
+  if(ev >= 10)   return 'overcast';
+  if(ev >= 8)    return 'open shade or heavy cloud';
+  if(ev >= 6)    return 'sunset, or a bright room';
+  if(ev >= 3)    return 'dusk, or an ordinary room';
+  if(ev >= 0)    return 'night, lit street';
+  return 'very dark';
+}
+
+// nearest real settings a camera actually offers
+const STOPS_N   = [1.4,1.8,2,2.8,4,5.6,8,11,16,22];
+const STOPS_ISO = [100,200,400,800,1600,3200,6400,12800];
+const STOPS_T   = [1/8000,1/4000,1/2000,1/1000,1/500,1/250,1/125,1/60,1/30,1/15,1/8,1/4,1/2,1,2,4,8,15,30];
+const nearest = (v,list) => list.reduce((a,b)=>Math.abs(Math.log2(b/v))<Math.abs(Math.log2(a/v))?b:a);
+function shutterLabel(t){
+  if(t >= 1) return `${t < 2 ? t.toFixed(0) : Math.round(t)}s`;
+  return `1/${Math.round(1/t)}`;
+}
+
+/* Three ways to shoot the same light, each with its own trade. The handheld
+   floor comes from the focal length actually chosen on the Lens tab. */
+function settingsFor(ev){
+  const F = fmt();
+  const eqMM = State.lensMM * F.crop;
+  const floor = 1/(eqMM*2);                    // 1/(2x focal length), honest handheld
+  const out = [];
+
+  const build = (name, N, isoWanted, why) => {
+    let iso = isoWanted, t = shutterAt(ev, N, iso);
+    // buy shutter speed with ISO until it is safe to hold
+    while(t > floor && iso < 6400){ iso *= 2; t = shutterAt(ev, N, iso); }
+    const tS = nearest(t, STOPS_T);
+    return {name, N, iso: nearest(iso, STOPS_ISO), t: tS, why,
+            tripod: tS > floor*1.4, label: shutterLabel(tS)};
+  };
+
+  out.push(build('Everything sharp', 11, 100,
+    'Deep focus for a landscape. Stopped down past f/11 diffraction starts to soften things again.'));
+  out.push(build('Subject separated', 2.8, 100,
+    'Wide open for a thin plane of focus and a soft background.'));
+  out.push(build('Freeze the motion', 5.6, 400,
+    'Middle aperture with the ISO carrying the shutter speed.'));
+  return {out, floor, floorLabel: shutterLabel(nearest(floor, STOPS_T)), eqMM};
 }
 
 /* ------------------------------------------------------------
@@ -2030,6 +2121,20 @@ function paint(){
       <div class="seg" id="segD">${[1,2,3,5,10,20,50,100].map(d=>`<button data-d="${d}" class="${d===State.dist?'on':''}">${d}m</button>`).join('')}</div>
 
       <p class="note">Turn on the <b>Lens</b> overlay to see the frame on the photograph, and drag it to move it around.</p>
+      ${(()=>{
+        const ev = ev100From(ex);
+        if(ev === null) return `<p class="subh" style="margin-top:18px">Camera settings</p>
+          <p class="note">This file carries no aperture, shutter and ISO, so there is no meter reading to work from. Open a photograph straight from a phone or camera — one that still has its EXIF — and Loupe will translate the light into settings for the body and lens above.</p>`;
+        const S = settingsFor(ev);
+        return `<p class="subh" style="margin-top:18px">Settings for this light &mdash; ${State.lensMM}mm on ${p.F.name}</p>
+        <p class="note">Metered at <b>EV ${ev.toFixed(1)}</b> (${evWords(ev)}). Handheld floor at this focal length is about <b>${S.floorLabel}</b>.</p>
+        <div class="rows">
+          ${S.out.map(o=>`<div class="row"><span>${o.name}</span><span>f/${o.N} &middot; ${o.label} &middot; ISO ${o.iso}${o.tripod?' <span class="hi">&middot; tripod</span>':''}</span></div>`).join('')}
+        </div>
+        <p class="note">${S.out[0].why} Same light, three different pictures &mdash; the trade is depth against motion against noise.</p>
+        <p class="note">This is a meter reading from one frame, not a rule. A phone meters the whole scene and applies its own processing, so treat it as a strong starting point and bracket around it when the light is contrasty.</p>`;
+      })()}
+
       <p class="note">Why this is trustworthy: perspective depends only on where you stand, never on focal length — so this crop shows the real compression a ${State.lensMM}mm gives from this spot, not merely the framing. What it cannot show is depth of field${isCam?'' : `: the real lens at f/${State.fstop} will throw the background far softer than a phone does, which is usually the whole reason for carrying it`}.</p>`;
 
     const wire = (sel, attr, fn) => {
@@ -2772,6 +2877,171 @@ function resetView(){ View.s=1; View.x=0; View.y=0; applyView(); }
 
   const ub = $('#unzoom');
   if(ub) ub.onclick = resetView;
+})();
+
+/* ------------------------------------------------------------
+   SCOUT — the live view
+   Deliberately limited: framing and light only. The preview stream is
+   auto-exposed by the phone and far too coarse to judge sharpness, so
+   no stars appear here. The shutter captures a real frame and the full
+   analysis runs on that.
+------------------------------------------------------------ */
+const Scout = {on:false, stream:null, raf:0, zebra:false, hist:null};
+
+async function scoutStart(){
+  try{
+    Scout.stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'},
+              width:{ideal:1920}, height:{ideal:1080} },
+      audio:false
+    });
+  }catch(err){
+    busy('Camera unavailable — check the permission in your browser settings.');
+    setTimeout(()=>busy(''), 4200);
+    return;
+  }
+  const v = $('#scoutVid');
+  v.srcObject = Scout.stream;
+  await v.play().catch(()=>{});
+  $('#scout').hidden = false;
+  document.getElementById('app').classList.remove('noshot');
+  Scout.on = true;
+  scoutLoop();
+}
+
+function scoutStop(){
+  Scout.on = false;
+  cancelAnimationFrame(Scout.raf);
+  if(Scout.stream){ Scout.stream.getTracks().forEach(t=>t.stop()); Scout.stream = null; }
+  const v = $('#scoutVid'); if(v) v.srcObject = null;
+  $('#scout').hidden = true;
+  setEmptyState();
+}
+
+function scoutLoop(){
+  if(!Scout.on) return;
+  const v = $('#scoutVid'), c = $('#scoutOv');
+  if(v && v.videoWidth){
+    const r = v.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio||1);
+    if(c.width !== Math.round(r.width*dpr)){ c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr); }
+    const cx = c.getContext('2d');
+    cx.clearRect(0,0,c.width,c.height);
+
+    // the picture is object-fit:contain, so find where it actually sits
+    const va = v.videoWidth/v.videoHeight, ba = c.width/c.height;
+    let iw, ih;
+    if(va > ba){ iw = c.width; ih = c.width/va; } else { ih = c.height; iw = c.height*va; }
+    const ix = (c.width-iw)/2, iy = (c.height-ih)/2;
+
+    scoutSample(v);
+    if(Scout.zebra) scoutZebra(cx, ix, iy, iw, ih);
+    scoutFrame(cx, ix, iy, iw, ih, va);
+    scoutHist(cx, c.width, c.height);
+  }
+  Scout.raf = requestAnimationFrame(scoutLoop);
+}
+
+// one small read per frame — enough for a histogram, cheap enough for 60fps
+const _sc = document.createElement('canvas'); _sc.width = 160; _sc.height = 120;
+function scoutSample(v){
+  const g = _sc.getContext('2d', {willReadFrequently:true});
+  g.drawImage(v, 0, 0, _sc.width, _sc.height);
+  const d = g.getImageData(0,0,_sc.width,_sc.height).data;
+  const L = new Uint32Array(64);
+  let blown = 0, crushed = 0, n = 0;
+  for(let i=0;i<d.length;i+=4){
+    const l = 0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2];
+    L[Math.min(63, l/4|0)]++;
+    if(d[i]>=253 && d[i+1]>=253 && d[i+2]>=253) blown++;
+    if(l <= 2) crushed++;
+    n++;
+  }
+  Scout.hist = {L, blown:100*blown/n, crushed:100*crushed/n};
+}
+
+function scoutHist(cx, W, H){
+  const h = Scout.hist; if(!h) return;
+  const w = Math.min(W*0.42, 260*(W/900)+150), hh = 54, x = W-w-14, y = 14;
+  cx.fillStyle = 'rgba(10,11,13,.8)';
+  cx.fillRect(x-6, y-6, w+12, hh+30);
+  let mx = 1; for(let i=1;i<63;i++) mx = Math.max(mx, h.L[i]);
+  cx.fillStyle = 'rgba(231,232,235,.75)';
+  for(let i=0;i<64;i++){
+    const v = Math.pow(h.L[i]/mx, 0.55) * hh;
+    cx.fillRect(x + i*w/64, y+hh-v, w/64-1, v);
+  }
+  cx.font = `600 ${Math.max(10,W/95)}px ui-monospace,monospace`;
+  cx.textBaseline = 'top';
+  cx.fillStyle = h.blown > 0.4 ? '#FFC24B' : 'rgba(140,145,155,.9)';
+  cx.fillText(`blown ${h.blown.toFixed(1)}%`, x, y+hh+6);
+  cx.fillStyle = h.crushed > 2 ? '#B98CF0' : 'rgba(140,145,155,.9)';
+  cx.fillText(`black ${h.crushed.toFixed(1)}%`, x+w*0.52, y+hh+6);
+}
+
+function scoutZebra(cx, ix, iy, iw, ih){
+  const h = Scout.hist; if(!h || h.blown < 0.2) return;
+  cx.save();
+  cx.strokeStyle = 'rgba(255,194,75,.5)'; cx.lineWidth = 2;
+  cx.beginPath();
+  for(let k=-ih; k<iw; k+=14){ cx.moveTo(ix+k, iy+ih); cx.lineTo(ix+k+ih, iy); }
+  cx.stroke(); cx.restore();
+}
+
+// the lens frame, live — the reason to stand here rather than there
+function scoutFrame(cx, ix, iy, iw, ih, va){
+  const F = fmt();
+  const rel = State.phoneEq / (State.lensMM * F.crop);
+  const lw = Math.max(1, iw/500);
+  if(rel > 1){
+    cx.strokeStyle='rgba(255,61,113,.85)'; cx.setLineDash([lw*6,lw*5]); cx.lineWidth=lw*2;
+    cx.strokeRect(ix+lw, iy+lw, iw-2*lw, ih-2*lw); cx.setLineDash([]);
+    return;
+  }
+  let w = rel, h = rel*(va/State.aspect);
+  if(h > 1){ const k = 1/h; h = 1; w = rel*k; }
+  const bw = w*iw, bh = h*ih;
+  const x = ix + (iw-bw)/2, y = iy + (ih-bh)/2;
+  cx.save();
+  cx.fillStyle = 'rgba(8,9,11,.5)';
+  cx.beginPath(); cx.rect(ix,iy,iw,ih); cx.rect(x,y,bw,bh); cx.fill('evenodd');
+  cx.restore();
+  cx.strokeStyle = 'rgba(255,255,255,.95)'; cx.lineWidth = lw*1.8;
+  cx.strokeRect(x,y,bw,bh);
+  const m = Math.min(bw,bh)*0.12;
+  cx.strokeStyle = 'rgba(142,202,230,.98)'; cx.lineWidth = lw*2.6; cx.beginPath();
+  [[x,y,1,1],[x+bw,y,-1,1],[x,y+bh,1,-1],[x+bw,y+bh,-1,-1]].forEach(([px,py,sx,sy])=>{
+    cx.moveTo(px+sx*m,py); cx.lineTo(px,py); cx.lineTo(px,py+sy*m);
+  });
+  cx.stroke();
+  const label = `${State.lensMM}mm · ${F.name}`;
+  cx.font = `600 ${Math.max(11, iw/52)}px ui-monospace,monospace`;
+  cx.textBaseline = 'top';
+  const tw = cx.measureText(label).width;
+  cx.fillStyle='rgba(8,9,11,.85)'; cx.fillRect(x, Math.max(iy, y-iw/30), tw+iw/60, iw/34);
+  cx.fillStyle='#fff'; cx.fillText(label, x+iw/120, Math.max(iy+iw/220, y-iw/34));
+}
+
+async function scoutCapture(){
+  const v = $('#scoutVid');
+  if(!v || !v.videoWidth) return;
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  const blob = await new Promise(r=>c.toBlob(r,'image/jpeg',0.94));
+  if(!blob) return;
+  const file = new File([blob], `scout-${Date.now()}.jpg`, {type:'image/jpeg'});
+  scoutStop();
+  await load([file]);
+}
+
+(function(){
+  const b = $('#btnScout');
+  if(b && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) b.hidden = false;
+  if(b) b.onclick = ()=> Scout.on ? scoutStop() : scoutStart();
+  const c = $('#scoutClose'); if(c) c.onclick = scoutStop;
+  const z = $('#scoutZeb');   if(z) z.onclick = ()=>{ Scout.zebra = !Scout.zebra; z.classList.toggle('primary', Scout.zebra); };
+  const sh = $('#scoutShot'); if(sh) sh.onclick = scoutCapture;
 })();
 
 /* ------------------------------------------------------------
