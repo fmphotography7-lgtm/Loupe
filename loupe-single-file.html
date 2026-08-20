@@ -124,6 +124,10 @@ main{flex:1;display:flex;min-height:0}
 .matchbox b{color:var(--peak)}
 .mb-more{display:block;margin-top:7px;font-size:11.5px;color:var(--dim)}
 .mb-warn{display:block;margin-top:7px;font-size:12px;color:var(--zebra);line-height:1.45}
+.mb-set{
+  display:inline-block;margin:5px 6px 0 0;padding:5px 9px;border-radius:3px;
+  background:rgba(142,202,230,.16);font-family:var(--mono);font-size:11.5px;color:var(--text);
+}
 #drop h2{font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;font-size:19px;margin:0;font-weight:500}
 #drop p{color:var(--dim);max-width:34ch;margin:0;font-size:13px}
 #stage.dragging{background:#1F2128}
@@ -136,18 +140,23 @@ main{flex:1;display:flex;min-height:0}
 }
 #busy.on{display:block}
 
-/* ---------- Scout: a camera app, not a web page ---------- */
-/* 100dvh, not inset:0 — a phone's toolbar makes the layout viewport taller
-   than what you can see, which pushed the shutter off the bottom. */
+/* ---------- Scout: a viewing window, then readouts, then the shutter ---------- */
 #scout{
   position:fixed;left:0;right:0;top:0;
-  height:100vh;height:100dvh;z-index:60;background:#000;
+  height:100vh;height:100dvh;z-index:60;background:var(--ink);
+  display:flex;flex-direction:column;
 }
 #scout[hidden]{display:none}
+
+/* the window is exactly the shape of what the camera sees — no black bars,
+   and the picture is never hidden behind a readout */
+#scoutStage{
+  position:relative;flex:0 0 auto;width:100%;background:#000;
+  aspect-ratio:3/4;max-height:64vh;max-height:64dvh;margin:0 auto;
+}
 #scoutVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
 #scoutOv{position:absolute;inset:0;pointer-events:none}
 
-/* every control lives at the top, out of the way of the picture */
 #scoutTop{
   position:absolute;z-index:4;left:0;right:0;
   top:max(8px,env(safe-area-inset-top));
@@ -174,27 +183,34 @@ main{flex:1;display:flex;min-height:0}
   position:absolute;top:0;right:0;font-family:var(--mono);font-size:17px;
   color:var(--text);padding:8px 12px;line-height:1;
 }
-#scoutNote .x:hover{color:var(--text)}
 
-/* the nudge only makes sense while the phone is upright */
-#scoutRotate{
-  position:absolute;z-index:5;left:50%;transform:translateX(-50%);
-  bottom:calc(max(14px,env(safe-area-inset-bottom)) + 108px);
-  font-size:12.5px;color:var(--text);text-align:center;
-  background:rgba(10,11,13,.86);border:1px solid var(--line);
-  border-radius:999px;padding:8px 16px;white-space:nowrap;display:none;
+/* the readouts live BELOW the picture, where a camera app puts them */
+#scoutInfo{
+  flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:9px;padding:10px 12px;
 }
-@media (orientation:portrait){ #scoutRotate{display:block} }
+#scoutHist{width:min(100%,320px);height:52px;display:block;
+  background:var(--panel2);border:1px solid var(--line);border-radius:3px}
+#scoutReads{
+  display:flex;gap:16px;font-family:var(--mono);font-size:11.5px;color:var(--dim);
+}
+#scoutReads .hot{color:var(--zebra)}
+#scoutReads .cold{color:#B98CF0}
+#scoutZoom{display:flex;gap:6px}
+#scoutZoom[hidden]{display:none}
+#scoutZoom button{
+  font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--dim);min-width:46px;
+}
+#scoutZoom button.on{background:var(--peak);color:var(--on-peak);border-color:var(--peak);font-weight:700}
 
-/* shutter where a phone camera always puts it */
 #scoutFoot{
-  position:absolute;z-index:4;left:0;right:0;
-  bottom:max(14px,env(safe-area-inset-bottom));
-  display:flex;justify-content:center;align-items:center;pointer-events:none;
+  flex:0 0 auto;display:flex;justify-content:center;align-items:center;
+  padding:10px 0;padding-bottom:max(12px,env(safe-area-inset-bottom));
 }
 #scoutShot{
-  pointer-events:auto;width:72px;height:72px;border-radius:50%;padding:0;
-  border:3px solid rgba(255,255,255,.95);background:rgba(0,0,0,.25);
+  width:72px;height:72px;border-radius:50%;padding:0;
+  border:3px solid rgba(255,255,255,.95);background:transparent;
   display:grid;place-items:center;
 }
 #scoutShot span{
@@ -204,20 +220,19 @@ main{flex:1;display:flex;min-height:0}
 #scoutShot:active span{transform:scale(.86)}
 #scoutShot.busy span{background:var(--peak)}
 
-/* sideways: controls hug the top, shutter moves to the right edge */
 @media (max-height:560px) and (orientation:landscape){
+  #scout{flex-direction:row;align-items:stretch}
+  #scoutStage{flex:1 1 auto;width:auto;height:100%;max-height:none;aspect-ratio:auto}
+  #scoutVid{object-fit:contain}
+  #scoutInfo{flex:0 0 auto;width:190px;justify-content:center;gap:8px;padding:8px}
+  #scoutHist{width:100%;height:44px}
+  #scoutFoot{flex:0 0 auto;padding:0 12px;padding-right:max(12px,env(safe-area-inset-right))}
   #scoutTop{top:max(6px,env(safe-area-inset-top));padding:0 8px;gap:5px}
   .sbtn{font-size:11.5px;padding:6px 10px}
-  #scoutNote{
-    left:10px;right:auto;max-width:min(56%,430px);
-    top:calc(max(6px,env(safe-area-inset-top)) + 42px);
-    font-size:10.5px;padding:6px 34px 6px 9px;line-height:1.35;
-  }
-  #scoutFoot{
-    left:auto;right:max(14px,env(safe-area-inset-right));top:0;bottom:0;width:auto;
-  }
   #scoutShot{width:60px;height:60px}
   #scoutShot span{width:46px;height:46px}
+  #scoutNote{left:10px;right:auto;max-width:min(56%,430px);
+    top:calc(max(6px,env(safe-area-inset-top)) + 42px);font-size:10.5px;padding:6px 34px 6px 9px}
 }
 
 #unzoom{
@@ -583,17 +598,27 @@ canvas.strip{height:38px}
     </div>
 
     <div id="scout" hidden>
-      <video id="scoutVid" playsinline muted></video>
-      <canvas id="scoutOv"></canvas>
-      <div id="scoutTop">
-        <button class="sbtn" id="scoutClose">&#8592; Exit scout</button>
-        <span class="grow"></span>
-        <button class="sbtn" id="scoutFill">Fit</button>
-        <button class="sbtn" id="scoutGrid">Grid</button>
-        <button class="sbtn" id="scoutZeb">Zebras</button>
+      <div id="scoutStage">
+        <video id="scoutVid" playsinline muted></video>
+        <canvas id="scoutOv"></canvas>
+        <div id="scoutTop">
+          <button class="sbtn" id="scoutClose">&#8592; Exit</button>
+          <span class="grow"></span>
+          <button class="sbtn" id="scoutGrid">Grid</button>
+          <button class="sbtn" id="scoutZeb">Zebras</button>
+        </div>
+        <p id="scoutNote">Compose, watch the light, then take the shot. Loupe reads the exposure and gives you settings for your camera.<button class="x" id="scoutNoteX" title="Hide">&#10005;</button></p>
       </div>
-      <p id="scoutNote">Compose with the grid, watch the light, then take the shot. Loupe will tell you which lens and settings match what you framed.<button class="x" id="scoutNoteX" title="Hide">&#10005;</button></p>
-      <div id="scoutRotate">Turn the phone sideways to compose a landscape frame</div>
+
+      <div id="scoutInfo">
+        <canvas id="scoutHist"></canvas>
+        <div id="scoutReads">
+          <span id="scoutBlown">blown 0.0%</span>
+          <span id="scoutBlack">black 0.0%</span>
+        </div>
+        <div id="scoutZoom" hidden></div>
+      </div>
+
       <div id="scoutFoot">
         <button id="scoutShot" title="Take a photo and check it" aria-label="Take a photo"><span></span></button>
       </div>
@@ -1608,7 +1633,6 @@ async function analyse(shot){
     shot.exif = await exif(shot.file);
   }
   if(shot.exif){ applyExifLens(shot.exif);
-    if(shot.scoutEq){ State.phoneEq = shot.scoutEq; State.eqSource = 'scout'; }
   }
   const tone = sample(src, 900);
   const edge = sample(src, State.res==='critical' ? 3200 : 1700);
@@ -2147,25 +2171,20 @@ function paint(){
   const scoutShot = State.eqSource === 'scout';
   let bringLine = '';
   if(scoutShot){
-    const Fv = fmt();
-    const mm = State.phoneEq / Fv.crop;
-    const pick = LENSES.reduce((a,b)=>Math.abs(b-mm)<Math.abs(a-mm)?b:a);
     const evS = shot.scoutEV ? shot.scoutEV.ev : ev100From(shot.exif);
-    let setLine = '';
     if(evS !== null && evS !== undefined){
       const S = settingsFor(evS);
-      const o = S.out[0];
-      setLine = ` Start at <b>f/${o.N}, ${o.label}, ISO ${o.iso}</b>${o.tripod?' — and put it on a tripod':''}.`;
+      bringLine = `<div class="matchbox">
+        <b>${evWords(evS)} — metered at EV ${evS.toFixed(1)}.</b>
+        On your camera that is ${S.out.map(o=>`<span class="mb-set">f/${o.N} · ${o.label} · ISO ${o.iso}</span>`).join(' ')}
+        <span class="mb-more">All three approaches, other bodies and the handheld limit are on the Lens tab.</span>
+      </div>`;
     } else {
-      // never silently drop half the answer — say why it is missing
-      setLine = ` <span class="mb-warn">Your phone didn't report its own exposure, so there's no meter reading to convert.
-        Take one shot with your normal camera app and open it here — that file carries the reading and Loupe will give you the settings.</span>`;
+      bringLine = `<div class="matchbox">
+        <span class="mb-warn">Your phone didn't report its own exposure to the browser, so there's no meter reading to convert.
+        Take one frame with your normal camera app and open it here — that file carries aperture, shutter and ISO.</span>
+      </div>`;
     }
-    bringLine = `<div class="matchbox">
-      <b>Bring a ${pick}mm.</b> You framed about ${State.phoneEq.toFixed(0)}mm equivalent, which is a
-      ${mm.toFixed(0)}mm lens on ${Fv.name}.${setLine}
-      <span class="mb-more">Full breakdown, other bodies and other apertures on the Lens tab.</span>
-    </div>`;
   }
 
   $('#verBody').innerHTML = `
@@ -2204,11 +2223,6 @@ function paint(){
     }[State.eqSource] || '';
     const src = `${p.phoneEq.toFixed(0)}mm equiv · ${srcWord}`;
 
-    // What lens on the chosen body frames the same view? That is the real
-    // answer to "what should I have brought".
-    const matchEq  = State.phoneEq;
-    const matchMM  = matchEq / p.F.crop;
-    const matchPick= LENSES.reduce((a,b)=>Math.abs(b-matchMM)<Math.abs(a-matchMM)?b:a);
     const fromScout = State.eqSource === 'scout';
 
     const isCam = State.kind === 'camera';
@@ -2234,11 +2248,7 @@ function paint(){
       : `${p.d.near.toFixed(2)}–${p.d.far.toFixed(2)}m (${p.d.total.toFixed(2)}m deep)`;
 
     $('#lenBody').innerHTML = `
-      ${fromScout ? `<div class="matchbox">
-        <b>Bring a ${matchPick}mm.</b> What you framed is about <b>${matchEq.toFixed(0)}mm equivalent</b>, which on ${p.F.name} is a <b>${matchMM.toFixed(0)}mm</b> lens — nearest common size ${matchPick}mm.
-        Change the body below and the answer changes with it.
-        <span class="mb-more">Tap a focal length to see that lens drawn on the picture.</span>
-      </div>` : ''}
+
       <p class="purpose">${purpose}</p>
 
       <div class="verdict"><i class="dot ${level==='good'?'good':'warn'}"></i>
@@ -3060,8 +3070,7 @@ function resetView(){ View.s=1; View.x=0; View.y=0; applyView(); }
 const SCOUT_GRIDS = [null,'thirds','phi','spiral','diag'];
 const GRID_NAMES = {null:'Grid', thirds:'Thirds', phi:'Golden', spiral:'Spiral', diag:'Diagonals'};
 const Scout = {on:false, stream:null, raf:0, zebra:false, hist:null,
-               fill:true, effEq:null, kx:1, barInset:14, measure:true,
-               grid:0, ev:null};
+               grid:0, u:1};
 
 async function scoutStart(){
   try{
@@ -3079,7 +3088,16 @@ async function scoutStart(){
   v.srcObject = Scout.stream;
   await v.play().catch(()=>{});
   $('#scout').hidden = false;
-  Scout.measure = true;
+  // the viewing window takes the camera's own shape, so nothing is letterboxed
+  const shape = ()=>{
+    if(v.videoWidth){
+      const st = $('#scoutStage');
+      if(st) st.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
+    }
+  };
+  v.addEventListener('loadedmetadata', shape, {once:true});
+  shape();
+  scoutZoomSetup();
   document.getElementById('app').classList.remove('noshot');
   Scout.on = true;
   scoutLoop();
@@ -3102,35 +3120,22 @@ function scoutLoop(){
     const dpr = Math.min(2, window.devicePixelRatio||1);
     if(c.width !== Math.round(r.width*dpr)){
       c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr);
-      Scout.measure = true;                       // layout changed, remeasure the bar
     }
+    Scout.u = dpr;                                 // one CSS pixel in canvas units
     const cx = c.getContext('2d');
     cx.clearRect(0,0,c.width,c.height);
 
+    // the picture is shown whole (object-fit:contain), so find where it sits
     const va = v.videoWidth/v.videoHeight, ba = c.width/c.height;
-    let ix, iy, iw, ih, viewAspect;
-
-    if(Scout.fill){
-      // FILL: the picture covers the whole window and the sides are cut off.
-      // Cutting the sides NARROWS the field of view, which lengthens the
-      // effective focal length — so the crop has to be measured, not ignored.
-      ix = 0; iy = 0; iw = c.width; ih = c.height;
-      Scout.kx = Math.min(1, ba/va);       // fraction of the sensor width still visible
-      viewAspect = ba;
-    } else {
-      // FIT: the whole sensor frame is shown, letterboxed. Nothing is lost.
-      if(va > ba){ iw = c.width; ih = c.width/va; } else { ih = c.height; iw = c.height*va; }
-      ix = (c.width-iw)/2; iy = (c.height-ih)/2;
-      Scout.kx = 1;
-      viewAspect = va;
-    }
-    Scout.effEq = State.phoneEq / Scout.kx;
+    let iw, ih;
+    if(va > ba){ iw = c.width; ih = c.width/va; } else { ih = c.height; iw = c.height*va; }
+    const ix = (c.width-iw)/2, iy = (c.height-ih)/2;
 
 
     scoutSample(v);
     if(Scout.zebra) scoutZebra(cx, ix, iy, iw, ih);
     scoutGridDraw(cx, ix, iy, iw, ih);
-    scoutHist(cx, c.width, c.height);
+    scoutHistPanel();
   }
   Scout.raf = requestAnimationFrame(scoutLoop);
 }
@@ -3153,32 +3158,73 @@ function scoutSample(v){
   Scout.hist = {L, blown:100*blown/n, crushed:100*crushed/n};
 }
 
-function scoutHist(cx, W, H){
+/* Below the picture, never over it — the readout can't hide the thing you
+   are trying to read it about. */
+function scoutHistPanel(){
   const h = Scout.hist; if(!h) return;
-  const w = Math.min(W*0.34, 240*(W/900)+130), hh = 44;
-  const x = W-w-14, y = H - hh - 44;
-  cx.fillStyle = 'rgba(10,11,13,.8)';
-  cx.fillRect(x-6, y-6, w+12, hh+30);
-  let mx = 1; for(let i=1;i<63;i++) mx = Math.max(mx, h.L[i]);
-  cx.fillStyle = 'rgba(231,232,235,.75)';
-  for(let i=0;i<64;i++){
-    const v = Math.pow(h.L[i]/mx, 0.55) * hh;
-    cx.fillRect(x + i*w/64, y+hh-v, w/64-1, v);
+  const c = $('#scoutHist'); if(!c) return;
+  const r = c.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  if(c.width !== Math.round(r.width*dpr)){
+    c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr);
   }
-  cx.font = `600 ${Math.max(10,W/95)}px ui-monospace,monospace`;
-  cx.textBaseline = 'top';
-  cx.fillStyle = h.blown > 0.4 ? '#FFC24B' : 'rgba(140,145,155,.9)';
-  cx.fillText(`blown ${h.blown.toFixed(1)}%`, x, y+hh+6);
-  cx.fillStyle = h.crushed > 2 ? '#B98CF0' : 'rgba(140,145,155,.9)';
-  cx.fillText(`black ${h.crushed.toFixed(1)}%`, x+w*0.52, y+hh+6);
+  const cx = c.getContext('2d'), W = c.width, H = c.height;
+  cx.clearRect(0,0,W,H);
+  cx.strokeStyle = 'rgba(255,255,255,.055)'; cx.lineWidth = 1;
+  for(let i=1;i<5;i++){ cx.beginPath(); cx.moveTo(W*i/5,0); cx.lineTo(W*i/5,H); cx.stroke(); }
+  let mx = 1; for(let i=1;i<63;i++) mx = Math.max(mx, h.L[i]);
+  cx.fillStyle = 'rgba(231,232,235,.8)';
+  for(let i=0;i<64;i++){
+    const v = Math.pow(h.L[i]/mx, 0.55) * H * 0.94;
+    cx.fillRect(i*W/64, H-v, W/64 - 0.5*dpr, v);
+  }
+  if(h.blown > 0.4){ cx.fillStyle = '#FFC24B'; cx.fillRect(W-3*dpr, 0, 3*dpr, H); }
+  if(h.crushed > 2){ cx.fillStyle = '#B98CF0'; cx.fillRect(0, 0, 3*dpr, H); }
+
+  const b = $('#scoutBlown'), k = $('#scoutBlack');
+  if(b){ b.textContent = `blown ${h.blown.toFixed(1)}%`; b.className = h.blown > 0.4 ? 'hot' : ''; }
+  if(k){ k.textContent = `black ${h.crushed.toFixed(1)}%`; k.className = h.crushed > 2 ? 'cold' : ''; }
+}
+
+/* Zoom, using the camera's own optical/hardware zoom when the browser
+   exposes it. If it doesn't, the control is hidden rather than faked —
+   a digital zoom here would only throw away pixels. */
+function scoutZoomSetup(){
+  const box = $('#scoutZoom'); if(!box) return;
+  box.innerHTML = ''; box.hidden = true;
+  try{
+    const t = Scout.stream && Scout.stream.getVideoTracks()[0];
+    if(!t || !t.getCapabilities) return;
+    const caps = t.getCapabilities();
+    if(!caps.zoom || caps.zoom.max <= caps.zoom.min) return;
+    const {min, max} = caps.zoom;
+    const now = (t.getSettings().zoom) || min;
+    const stops = [min, min + (max-min)*0.25, min + (max-min)*0.6, max]
+      .filter((v,i,a)=>a.indexOf(v)===i);
+    stops.forEach((z,i)=>{
+      const btn = document.createElement('button');
+      btn.textContent = i === 0 ? '1×' : (z/min).toFixed(z/min < 10 ? 1 : 0) + '×';
+      btn.classList.toggle('on', Math.abs(z-now) < 1e-6);
+      btn.onclick = async ()=>{
+        try{
+          await t.applyConstraints({advanced:[{zoom:z}]});
+          [...box.children].forEach(c=>c.classList.remove('on'));
+          btn.classList.add('on');
+        }catch(e){}
+      };
+      box.appendChild(btn);
+    });
+    box.hidden = false;
+  }catch(e){}
 }
 
 function scoutZebra(cx, ix, iy, iw, ih){
   const h = Scout.hist; if(!h || h.blown < 0.2) return;
+  const u = Scout.u || 1;
   cx.save();
-  cx.strokeStyle = 'rgba(255,194,75,.5)'; cx.lineWidth = 2;
+  cx.strokeStyle = 'rgba(255,194,75,.5)'; cx.lineWidth = 2*u;
   cx.beginPath();
-  for(let k=-ih; k<iw; k+=14){ cx.moveTo(ix+k, iy+ih); cx.lineTo(ix+k+ih, iy); }
+  for(let k=-ih; k<iw; k+=16*u){ cx.moveTo(ix+k, iy+ih); cx.lineTo(ix+k+ih, iy); }
   cx.stroke(); cx.restore();
 }
 
@@ -3186,7 +3232,8 @@ function scoutZebra(cx, ix, iy, iw, ih){
    where to stand, and a grid is what that decision is made against. */
 function scoutGridDraw(cx, ix, iy, iw, ih){
   const k = SCOUT_GRIDS[Scout.grid]; if(!k) return;
-  const lw = Math.max(1, Math.min(iw,ih)/700);
+  const u = Scout.u || 1;
+  const lw = 1.3*u;                                // a hairline, in real pixels
   cx.save(); cx.translate(ix, iy);
   cx.strokeStyle = GRID; cx.lineWidth = lw; cx.beginPath();
   if(k === 'thirds' || k === 'phi'){
@@ -3194,7 +3241,7 @@ function scoutGridDraw(cx, ix, iy, iw, ih){
     [a,b].forEach(v=>{ cx.moveTo(v*iw,0); cx.lineTo(v*iw,ih); cx.moveTo(0,v*ih); cx.lineTo(iw,v*ih); });
     cx.stroke();
     cx.fillStyle = GRID_DOT;
-    const r = Math.max(2, Math.min(iw,ih)/230);
+    const r = 3*u;
     [a,b].forEach(v=>[a,b].forEach(u=>{ cx.beginPath(); cx.arc(v*iw,u*ih,r,0,Math.PI*2); cx.fill(); }));
   } else if(k === 'diag'){
     const d = Math.max(iw,ih)*1.5;
@@ -3202,8 +3249,17 @@ function scoutGridDraw(cx, ix, iy, iw, ih){
     cx.moveTo(0,ih); cx.lineTo(d,ih-d); cx.moveTo(iw,ih); cx.lineTo(iw-d,ih-d);
     cx.stroke();
   } else if(k === 'spiral'){
+    // fit the guide to the frame you will actually shoot, centred, rather
+    // than stretching a phi rectangle across a tall phone screen
+    let gw = iw, gh = iw/State.aspect;
+    if(gh > ih){ gh = ih; gw = ih*State.aspect; }
+    const gx = (iw-gw)/2, gy = (ih-gh)/2;
+    cx.save();
+    cx.strokeStyle = 'rgba(255,194,75,.4)'; cx.lineWidth = lw;
+    cx.strokeRect(gx, gy, gw, gh);
+    cx.translate(gx, gy);
     const CW = PHI, CH = 1;
-    cx.save(); cx.scale(iw/CW, ih/CH);
+    cx.save(); cx.scale(gw/CW, gh/CH);
     cx.beginPath();
     let x=0,y=0,w=CW,h=CH,dir=0;
     for(let i=0;i<11 && w>0.004 && h>0.004;i++){
@@ -3215,7 +3271,8 @@ function scoutGridDraw(cx, ix, iy, iw, ih){
       dir=(dir+1)%4;
     }
     cx.restore();
-    cx.strokeStyle = GRID; cx.lineWidth = lw*1.6; cx.stroke();
+    cx.strokeStyle = GRID; cx.lineWidth = lw*1.5; cx.stroke();
+    cx.restore();
   }
   cx.restore();
 }
@@ -3225,22 +3282,12 @@ async function scoutCapture(){
   if(!v || !v.videoWidth) return;
   const btn = $('#scoutShot');
   if(btn){ if(btn.dataset.busy) return; btn.dataset.busy = '1'; btn.classList.add('busy'); }
-  const ov = $('#scoutOv');
-  const ba = ov.width/ov.height, va = v.videoWidth/v.videoHeight;
-
-  // capture EXACTLY what was on screen, so the lens reading still holds
-  let sx=0, sy=0, sw=v.videoWidth, sh=v.videoHeight, kx=1;
-  if(Scout.fill){
-    if(va > ba){ sw = v.videoHeight*ba; sx = (v.videoWidth-sw)/2; kx = sw/v.videoWidth; }
-    else       { sh = v.videoWidth/ba;  sy = (v.videoHeight-sh)/2; }
-  }
   const c = document.createElement('canvas');
-  c.width = Math.round(sw); c.height = Math.round(sh);
-  c.getContext('2d').drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
   const blob = await new Promise(r=>c.toBlob(r,'image/jpeg',0.94));
   if(!blob) return;
   const file = new File([blob], `scout-${Date.now()}.jpg`, {type:'image/jpeg'});
-  const eq = State.phoneEq / kx;
   const meter = scoutMeter();
   const grid = SCOUT_GRIDS[Scout.grid];
   scoutStop();
@@ -3248,13 +3295,9 @@ async function scoutCapture(){
 
   const shot = State.shots[State.idx];
   if(shot){
-    // a captured frame has no EXIF, so hand it what we measured live
-    shot.scoutEq = eq;
+    // a captured frame has no EXIF, so hand it the meter reading we took live
     shot.scoutEV = meter;
-    State.phoneEq = eq; State.eqSource = 'scout';
-    // start the simulation at the lens that matches what was framed
-    const want = eq / (fmt().crop || 1);
-    State.lensMM = LENSES.reduce((a,b)=>Math.abs(b-want)<Math.abs(a-want)?b:a);
+    State.eqSource = 'scout';
     // keep whatever guide he was composing with, and NEVER draw a simulated
     // lens frame on a scout shot — the answer belongs in words, not a box
     State.overlays.delete('lens');
@@ -3281,13 +3324,6 @@ async function scoutCapture(){
   const nx = $('#scoutNoteX');
   if(nx) nx.onclick = ()=>{ $('#scoutNote').hidden = true; mark('loupe.scoutnote'); };
   if(seen('loupe.scoutnote')) { const n0 = $('#scoutNote'); if(n0) n0.hidden = true; }
-  const fl = $('#scoutFill');
-  if(fl) fl.onclick = ()=>{
-    Scout.fill = !Scout.fill;
-    fl.textContent = Scout.fill ? 'Fit' : 'Fill';
-    fl.classList.toggle('on', !Scout.fill);
-    const v = $('#scoutVid'); if(v) v.style.objectFit = Scout.fill ? 'cover' : 'contain';
-  };
   const sh = $('#scoutShot'); if(sh) sh.onclick = scoutCapture;
 })();
 
