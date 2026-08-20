@@ -116,6 +116,13 @@ main{flex:1;display:flex;min-height:0}
   font-size:13px;line-height:1.5;border-radius:0 2px 2px 0;
 }
 .purpose em{color:var(--text);font-style:italic}
+.matchbox{
+  margin:12px 0 0;padding:13px 14px;border-radius:3px;
+  background:rgba(142,202,230,.1);border:1px solid rgba(142,202,230,.35);
+  font-size:13.5px;line-height:1.55;
+}
+.matchbox b{color:var(--peak)}
+.mb-more{display:block;margin-top:7px;font-size:11.5px;color:var(--dim)}
 #drop h2{font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;font-size:19px;margin:0;font-weight:500}
 #drop p{color:var(--dim);max-width:34ch;margin:0;font-size:13px}
 #stage.dragging{background:#1F2128}
@@ -156,14 +163,15 @@ main{flex:1;display:flex;min-height:0}
 #scoutShot:active span{transform:scale(.86)}
 #scoutShot.busy span{background:var(--peak)}
 #scoutNote{
-  position:absolute;z-index:2;left:10px;right:10px;bottom:72px;margin:0;
+  position:absolute;z-index:5;left:10px;right:10px;margin:0;
+  top:max(10px,env(safe-area-inset-top));
   font-size:11.5px;line-height:1.4;color:var(--dim);
-  background:rgba(10,11,13,.84);border-radius:3px;padding:7px 30px 7px 10px;
+  background:rgba(10,11,13,.88);border-radius:3px;padding:8px 38px 8px 11px;
 }
 #scoutNote[hidden]{display:none}
 #scoutNote .x{
-  position:absolute;top:3px;right:5px;font-family:var(--mono);font-size:15px;
-  color:var(--dim);padding:3px 6px;line-height:1;
+  position:absolute;top:0;right:0;font-family:var(--mono);font-size:17px;
+  color:var(--text);padding:8px 12px;line-height:1;
 }
 #scoutNote .x:hover{color:var(--text)}
 
@@ -485,8 +493,8 @@ canvas.strip{height:38px}
   #scoutShot{width:58px;height:58px}
   #scoutShot span{width:44px;height:44px}
   #scoutNote{
-    left:10px;right:auto;bottom:8px;max-width:min(58%,430px);
-    font-size:10.5px;padding:5px 8px;line-height:1.35;
+    left:10px;right:auto;top:max(8px,env(safe-area-inset-top));max-width:min(56%,430px);
+    font-size:10.5px;padding:6px 34px 6px 9px;line-height:1.35;
   }
 }
 
@@ -554,7 +562,7 @@ canvas.strip{height:38px}
     <div id="scout" hidden>
       <video id="scoutVid" playsinline muted></video>
       <canvas id="scoutOv"></canvas>
-      <p id="scoutNote">Framing and light only &mdash; a preview stream is too coarse to judge sharpness. Filling the screen crops the sides, so this view is longer than your phone's lens; Loupe allows for that and crops the capture to match.<button class="x" id="scoutNoteX" title="Hide">&#10005;</button></p>
+      <p id="scoutNote">Compose with the grid, watch the light, then take the shot. Loupe will tell you which lens and settings match what you framed.<button class="x" id="scoutNoteX" title="Hide">&#10005;</button></p>
       <div id="scoutBar">
         <div class="scoutRow">
           <button class="btn" id="scoutFill">Fit</button>
@@ -2114,7 +2122,28 @@ function paint(){
                R.overall >= 2.5 ? 'Usable' : R.overall >= 1.5 ? 'Fixable next time' : 'Worth another go';
   const fitsV = compositionFits(f, arC);
 
+  const scoutShot = State.eqSource === 'scout';
+  let bringLine = '';
+  if(scoutShot){
+    const Fv = fmt();
+    const mm = State.phoneEq / Fv.crop;
+    const pick = LENSES.reduce((a,b)=>Math.abs(b-mm)<Math.abs(a-mm)?b:a);
+    const evS = shot.scoutEV ? shot.scoutEV.ev : ev100From(shot.exif);
+    let setLine = '';
+    if(evS !== null && evS !== undefined){
+      const S = settingsFor(evS);
+      const o = S.out[0];
+      setLine = ` Start at <b>f/${o.N}, ${o.label}, ISO ${o.iso}</b>${o.tripod?' — and put it on a tripod':''}.`;
+    }
+    bringLine = `<div class="matchbox">
+      <b>Bring a ${pick}mm.</b> You framed about ${State.phoneEq.toFixed(0)}mm equivalent, which is a
+      ${mm.toFixed(0)}mm lens on ${Fv.name}.${setLine}
+      <span class="mb-more">Full breakdown, other bodies and other apertures on the Lens tab.</span>
+    </div>`;
+  }
+
   $('#verBody').innerHTML = `
+    ${bringLine}
     <div class="overall">
       <span class="big">${R.overall.toFixed(1)}</span>
       <span>${starsHTML(R.overall)}<br><span class="sdim">${word} · technical quality</span></span>
@@ -2149,6 +2178,13 @@ function paint(){
     }[State.eqSource] || '';
     const src = `${p.phoneEq.toFixed(0)}mm equiv · ${srcWord}`;
 
+    // What lens on the chosen body frames the same view? That is the real
+    // answer to "what should I have brought".
+    const matchEq  = State.phoneEq;
+    const matchMM  = matchEq / p.F.crop;
+    const matchPick= LENSES.reduce((a,b)=>Math.abs(b-matchMM)<Math.abs(a-matchMM)?b:a);
+    const fromScout = State.eqSource === 'scout';
+
     const isCam = State.kind === 'camera';
     const purpose = isCam
       ? `Shot at <b>${State.shotMM ? State.shotMM.toFixed(0)+'mm' : p.phoneEq.toFixed(0)+'mm equivalent'}</b>${phoneName?` on your ${phoneName}`:''}. Pick a different lens below to see what it would have framed <em>from the same spot</em>.`
@@ -2172,6 +2208,11 @@ function paint(){
       : `${p.d.near.toFixed(2)}–${p.d.far.toFixed(2)}m (${p.d.total.toFixed(2)}m deep)`;
 
     $('#lenBody').innerHTML = `
+      ${fromScout ? `<div class="matchbox">
+        <b>Bring a ${matchPick}mm.</b> What you framed is about <b>${matchEq.toFixed(0)}mm equivalent</b>, which on ${p.F.name} is a <b>${matchMM.toFixed(0)}mm</b> lens — nearest common size ${matchPick}mm.
+        Change the body below and the answer changes with it.
+        <span class="mb-more">Tap a focal length to see that lens drawn on the picture.</span>
+      </div>` : ''}
       <p class="purpose">${purpose}</p>
 
       <div class="verdict"><i class="dot ${level==='good'?'good':'warn'}"></i>
@@ -3071,7 +3112,6 @@ function scoutLoop(){
     scoutSample(v);
     if(Scout.zebra) scoutZebra(cx, ix, iy, iw, ih);
     scoutGridDraw(cx, ix, iy, iw, ih);
-    scoutFrame(cx, ix, iy, iw, ih, viewAspect);
     scoutHist(cx, c.width, c.height);
   }
   Scout.raf = requestAnimationFrame(scoutLoop);
@@ -3161,66 +3201,6 @@ function scoutGridDraw(cx, ix, iy, iw, ih){
   cx.restore();
 }
 
-// the lens frame, live — the reason to stand here rather than there
-function scoutFrame(cx, ix, iy, iw, ih, va){
-  const F = fmt();
-  const rel = Scout.effEq / (State.lensMM * F.crop);
-  const lw = Math.max(1, iw/500);
-  if(rel > 1){
-    cx.strokeStyle='rgba(255,194,75,.9)'; cx.setLineDash([lw*6,lw*5]); cx.lineWidth=lw*2;
-    cx.strokeRect(ix+lw, iy+lw, iw-2*lw, ih-2*lw); cx.setLineDash([]);
-    const msg = Scout.fill
-      ? `${State.lensMM}mm is wider than this view — tap Fit, or turn the phone sideways`
-      : `${State.lensMM}mm is wider than your phone sees`;
-    cx.font = `600 ${Math.max(11, iw/40)}px ui-monospace,monospace`;
-    cx.textBaseline = 'middle';
-    const tw = cx.measureText(msg).width;
-    cx.fillStyle='rgba(8,9,11,.85)';
-    cx.fillRect(ix+iw/2-tw/2-10, iy+ih/2-iw/40, tw+20, iw/20);
-    cx.fillStyle='rgba(255,194,75,.95)';
-    cx.fillText(msg, ix+iw/2-tw/2, iy+ih/2);
-    return;
-  }
-  let w = rel, h = rel*(va/State.aspect);
-  if(h > 1){ const k = 1/h; h = 1; w = rel*k; }
-  const bw = w*iw, bh = h*ih;
-  const x = ix + (iw-bw)/2, y = iy + (ih-bh)/2;
-  cx.save();
-  cx.fillStyle = 'rgba(8,9,11,.5)';
-  cx.beginPath(); cx.rect(ix,iy,iw,ih); cx.rect(x,y,bw,bh); cx.fill('evenodd');
-  cx.restore();
-  cx.strokeStyle = 'rgba(255,255,255,.95)'; cx.lineWidth = lw*1.8;
-  cx.strokeRect(x,y,bw,bh);
-  const m = Math.min(bw,bh)*0.12;
-  cx.strokeStyle = 'rgba(142,202,230,.98)'; cx.lineWidth = lw*2.6; cx.beginPath();
-  [[x,y,1,1],[x+bw,y,-1,1],[x,y+bh,1,-1],[x+bw,y+bh,-1,-1]].forEach(([px,py,sx,sy])=>{
-    cx.moveTo(px+sx*m,py); cx.lineTo(px,py); cx.lineTo(px,py+sy*m);
-  });
-  cx.stroke();
-  const label = `${State.lensMM}mm · ${F.name}` +
-    (Scout.kx < 0.99 ? `  ·  view ${Scout.effEq.toFixed(0)}mm eq` : '');
-  cx.font = `600 ${Math.max(11, iw/52)}px ui-monospace,monospace`;
-  cx.textBaseline = 'top';
-  const tw = cx.measureText(label).width;
-  cx.fillStyle='rgba(8,9,11,.85)'; cx.fillRect(x, Math.max(iy, y-iw/30), tw+iw/60, iw/34);
-  cx.fillStyle='#fff'; cx.fillText(label, x+iw/120, Math.max(iy+iw/220, y-iw/34));
-}
-
-/* A live capture has no EXIF, but the video track often reports the phone's
-   own exposure. Aperture is not offered, so it is taken from a stored value
-   and labelled as an assumption rather than passed off as measured. */
-function scoutMeter(){
-  try{
-    const t = Scout.stream && Scout.stream.getVideoTracks()[0];
-    if(!t || !t.getSettings) return null;
-    const st = t.getSettings();
-    if(!(st.exposureTime > 0 && st.iso > 0)) return null;
-    const secs = st.exposureTime / 10000;      // spec unit is 100 microseconds
-    const N = State.phoneF;
-    return {ev: Math.log2((N*N)/secs) - Math.log2(st.iso/100), assumedF: N};
-  }catch(e){ return null; }
-}
-
 async function scoutCapture(){
   const v = $('#scoutVid');
   if(!v || !v.videoWidth) return;
@@ -3253,14 +3233,15 @@ async function scoutCapture(){
     shot.scoutEq = eq;
     shot.scoutEV = meter;
     State.phoneEq = eq; State.eqSource = 'scout';
-    // land on composition with a guide already up — that is what scouting is for
-    if(shot.result){
-      const fits = compositionFits(shot.result.f, shot.result.natW/shot.result.natH);
-      const map = {thirds:'thirds', phi:'phi', spiral:'spiral', diag:'diag', tri:'tri', centre:null};
-      const k = grid || map[fits[0].key];
-      if(k && !State.overlays.has(k)) setOverlay(k);
-    }
-    paint(); drawOverlays(); showTab('frame');
+    // start the simulation at the lens that matches what was framed
+    const want = eq / (fmt().crop || 1);
+    State.lensMM = LENSES.reduce((a,b)=>Math.abs(b-want)<Math.abs(a-want)?b:a);
+    // keep whatever guide he was composing with, and NEVER draw a simulated
+    // lens frame on a scout shot — the answer belongs in words, not a box
+    State.overlays.delete('lens');
+    if(grid && !State.overlays.has(grid)) setOverlay(grid);
+    syncChips();
+    paint(); drawOverlays(); showTab('verdict');
   }
   if(btn){ btn.classList.remove('busy'); delete btn.dataset.busy; }
 }
