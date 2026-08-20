@@ -131,7 +131,7 @@ main{flex:1;display:flex;min-height:0}
 
 #scout{position:absolute;inset:0;z-index:9;background:#000;display:flex;flex-direction:column}
 #scout[hidden]{display:none}
-#scoutVid{flex:1;width:100%;min-height:0;object-fit:contain;background:#000}
+#scoutVid{flex:1;width:100%;min-height:0;object-fit:cover;background:#000}
 #scoutOv{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none}
 #scoutBar{
   position:relative;z-index:3;display:flex;align-items:center;gap:8px;
@@ -472,10 +472,11 @@ canvas.strip{height:38px}
     <div id="scout" hidden>
       <video id="scoutVid" playsinline muted></video>
       <canvas id="scoutOv"></canvas>
-      <p id="scoutNote">Live view shows framing and light only. Sharpness needs a captured frame &mdash; a preview stream is far too coarse to judge it.</p>
+      <p id="scoutNote">Framing and light only &mdash; a preview stream is too coarse to judge sharpness. Filling the screen crops the sides, so the view is longer than your phone's lens; Loupe allows for that and the capture is cropped to match.</p>
       <div id="scoutBar">
         <button class="btn" id="scoutClose">Close</button>
         <span class="spacer"></span>
+        <button class="btn" id="scoutFill">Fit</button>
         <button class="btn" id="scoutZeb">Clipping</button>
         <button class="btn primary" id="scoutShot">Capture &amp; check</button>
       </div>
@@ -1489,6 +1490,7 @@ async function analyse(shot){
     shot.exif = await exif(shot.file);
   }
   if(shot.exif){ applyExifLens(shot.exif);
+    if(shot.scoutEq){ State.phoneEq = shot.scoutEq; State.eqSource = 'scout'; }
   }
   const tone = sample(src, 900);
   const edge = sample(src, State.res==='critical' ? 3200 : 1700);
@@ -2054,6 +2056,7 @@ function paint(){
       'camera':    'read from the file',
       'zoom':      'you set this',
       'manual':    'you set this',
+      'scout':     'measured from the live view',
       'assumed':   'no lens data in this file — set it below'
     }[State.eqSource] || '';
     const src = `${p.phoneEq.toFixed(0)}mm equiv · ${srcWord}`;
@@ -2886,7 +2889,8 @@ function resetView(){ View.s=1; View.x=0; View.y=0; applyView(); }
    no stars appear here. The shutter captures a real frame and the full
    analysis runs on that.
 ------------------------------------------------------------ */
-const Scout = {on:false, stream:null, raf:0, zebra:false, hist:null};
+const Scout = {on:false, stream:null, raf:0, zebra:false, hist:null,
+               fill:true, effEq:null, kx:1};
 
 async function scoutStart(){
   try{
@@ -2928,15 +2932,28 @@ function scoutLoop(){
     const cx = c.getContext('2d');
     cx.clearRect(0,0,c.width,c.height);
 
-    // the picture is object-fit:contain, so find where it actually sits
     const va = v.videoWidth/v.videoHeight, ba = c.width/c.height;
-    let iw, ih;
-    if(va > ba){ iw = c.width; ih = c.width/va; } else { ih = c.height; iw = c.height*va; }
-    const ix = (c.width-iw)/2, iy = (c.height-ih)/2;
+    let ix, iy, iw, ih, viewAspect;
+
+    if(Scout.fill){
+      // FILL: the picture covers the whole window and the sides are cut off.
+      // Cutting the sides NARROWS the field of view, which lengthens the
+      // effective focal length — so the crop has to be measured, not ignored.
+      ix = 0; iy = 0; iw = c.width; ih = c.height;
+      Scout.kx = Math.min(1, ba/va);       // fraction of the sensor width still visible
+      viewAspect = ba;
+    } else {
+      // FIT: the whole sensor frame is shown, letterboxed. Nothing is lost.
+      if(va > ba){ iw = c.width; ih = c.width/va; } else { ih = c.height; iw = c.height*va; }
+      ix = (c.width-iw)/2; iy = (c.height-ih)/2;
+      Scout.kx = 1;
+      viewAspect = va;
+    }
+    Scout.effEq = State.phoneEq / Scout.kx;
 
     scoutSample(v);
     if(Scout.zebra) scoutZebra(cx, ix, iy, iw, ih);
-    scoutFrame(cx, ix, iy, iw, ih, va);
+    scoutFrame(cx, ix, iy, iw, ih, viewAspect);
     scoutHist(cx, c.width, c.height);
   }
   Scout.raf = requestAnimationFrame(scoutLoop);
@@ -2991,11 +3008,21 @@ function scoutZebra(cx, ix, iy, iw, ih){
 // the lens frame, live — the reason to stand here rather than there
 function scoutFrame(cx, ix, iy, iw, ih, va){
   const F = fmt();
-  const rel = State.phoneEq / (State.lensMM * F.crop);
+  const rel = Scout.effEq / (State.lensMM * F.crop);
   const lw = Math.max(1, iw/500);
   if(rel > 1){
-    cx.strokeStyle='rgba(255,61,113,.85)'; cx.setLineDash([lw*6,lw*5]); cx.lineWidth=lw*2;
+    cx.strokeStyle='rgba(255,194,75,.9)'; cx.setLineDash([lw*6,lw*5]); cx.lineWidth=lw*2;
     cx.strokeRect(ix+lw, iy+lw, iw-2*lw, ih-2*lw); cx.setLineDash([]);
+    const msg = Scout.fill
+      ? `${State.lensMM}mm is wider than this view — tap Fit, or turn the phone sideways`
+      : `${State.lensMM}mm is wider than your phone sees`;
+    cx.font = `600 ${Math.max(11, iw/40)}px ui-monospace,monospace`;
+    cx.textBaseline = 'middle';
+    const tw = cx.measureText(msg).width;
+    cx.fillStyle='rgba(8,9,11,.85)';
+    cx.fillRect(ix+iw/2-tw/2-10, iy+ih/2-iw/40, tw+20, iw/20);
+    cx.fillStyle='rgba(255,194,75,.95)';
+    cx.fillText(msg, ix+iw/2-tw/2, iy+ih/2);
     return;
   }
   let w = rel, h = rel*(va/State.aspect);
@@ -3014,7 +3041,8 @@ function scoutFrame(cx, ix, iy, iw, ih, va){
     cx.moveTo(px+sx*m,py); cx.lineTo(px,py); cx.lineTo(px,py+sy*m);
   });
   cx.stroke();
-  const label = `${State.lensMM}mm · ${F.name}`;
+  const label = `${State.lensMM}mm · ${F.name}` +
+    (Scout.kx < 0.99 ? `  ·  view ${Scout.effEq.toFixed(0)}mm eq` : '');
   cx.font = `600 ${Math.max(11, iw/52)}px ui-monospace,monospace`;
   cx.textBaseline = 'top';
   const tw = cx.measureText(label).width;
@@ -3025,14 +3053,27 @@ function scoutFrame(cx, ix, iy, iw, ih, va){
 async function scoutCapture(){
   const v = $('#scoutVid');
   if(!v || !v.videoWidth) return;
+  const ov = $('#scoutOv');
+  const ba = ov.width/ov.height, va = v.videoWidth/v.videoHeight;
+
+  // capture EXACTLY what was on screen, so the lens reading still holds
+  let sx=0, sy=0, sw=v.videoWidth, sh=v.videoHeight, kx=1;
+  if(Scout.fill){
+    if(va > ba){ sw = v.videoHeight*ba; sx = (v.videoWidth-sw)/2; kx = sw/v.videoWidth; }
+    else       { sh = v.videoWidth/ba;  sy = (v.videoHeight-sh)/2; }
+  }
   const c = document.createElement('canvas');
-  c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext('2d').drawImage(v,0,0);
+  c.width = Math.round(sw); c.height = Math.round(sh);
+  c.getContext('2d').drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
   const blob = await new Promise(r=>c.toBlob(r,'image/jpeg',0.94));
   if(!blob) return;
   const file = new File([blob], `scout-${Date.now()}.jpg`, {type:'image/jpeg'});
+  const eq = State.phoneEq / kx;
   scoutStop();
   await load([file]);
+  // a captured frame has no EXIF, so hand it the equivalent we measured
+  const shot = State.shots[State.idx];
+  if(shot){ shot.scoutEq = eq; State.phoneEq = eq; State.eqSource = 'scout'; paint(); drawOverlays(); }
 }
 
 (function(){
@@ -3041,6 +3082,12 @@ async function scoutCapture(){
   if(b) b.onclick = ()=> Scout.on ? scoutStop() : scoutStart();
   const c = $('#scoutClose'); if(c) c.onclick = scoutStop;
   const z = $('#scoutZeb');   if(z) z.onclick = ()=>{ Scout.zebra = !Scout.zebra; z.classList.toggle('primary', Scout.zebra); };
+  const fl = $('#scoutFill');
+  if(fl) fl.onclick = ()=>{
+    Scout.fill = !Scout.fill;
+    fl.textContent = Scout.fill ? 'Fit' : 'Fill';
+    const v = $('#scoutVid'); if(v) v.style.objectFit = Scout.fill ? 'cover' : 'contain';
+  };
   const sh = $('#scoutShot'); if(sh) sh.onclick = scoutCapture;
 })();
 
