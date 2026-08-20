@@ -3071,10 +3071,18 @@ function scoutLoop(){
   if(!Scout.on) return;
   const v = $('#scoutVid');
   if(v && v.videoWidth){
+    // The window keeps its own shape and the feed FILLS it — a phone held
+    // upright still previews a landscape frame. Nothing here depends on the
+    // crop, since Loupe no longer guesses a focal length from it.
     const st = $('#stage').getBoundingClientRect();
     const pad = 22;
-    const k = Math.min((st.width-pad)/v.videoWidth, (st.height-pad)/v.videoHeight);
-    const w = Math.max(40, Math.round(v.videoWidth*k)), h = Math.max(40, Math.round(v.videoHeight*k));
+    const availW = Math.max(80, st.width - pad), availH = Math.max(80, st.height - pad);
+    let ar = availW / availH;
+    ar = Math.max(0.8, Math.min(1.9, ar));            // never absurdly wide or tall
+    let w = availW, h = w/ar;
+    if(h > availH){ h = availH; w = h*ar; }
+    w = Math.round(w); h = Math.round(h);
+
     const dpr = Math.min(2, window.devicePixelRatio||1);
     for(const c of [base, over]){
       if(c.width !== Math.round(w*dpr) || c.height !== Math.round(h*dpr)){
@@ -3082,8 +3090,14 @@ function scoutLoop(){
         c.style.width = w+'px'; c.style.height = h+'px';
       }
     }
-    base.getContext('2d').drawImage(v, 0, 0, base.width, base.height);
-    scoutSample(v);
+
+    // centre-crop the feed to cover the window
+    const scale = Math.max(base.width/v.videoWidth, base.height/v.videoHeight);
+    const sw = base.width/scale, sh = base.height/scale;
+    const sx = (v.videoWidth - sw)/2, sy = (v.videoHeight - sh)/2;
+    base.getContext('2d').drawImage(v, sx, sy, sw, sh, 0, 0, base.width, base.height);
+
+    scoutSample(v, sx, sy, sw, sh);
     scoutDrawOverlays();
     scoutHistPanel();
   }
@@ -3112,9 +3126,10 @@ function scoutDrawOverlays(){
 
 // one small read per frame — enough for a histogram, cheap enough for 60fps
 const _sc = document.createElement('canvas'); _sc.width = 160; _sc.height = 120;
-function scoutSample(v){
+function scoutSample(v, sx, sy, sw, sh){
   const g = _sc.getContext('2d', {willReadFrequently:true});
-  g.drawImage(v, 0, 0, _sc.width, _sc.height);
+  if(sw) g.drawImage(v, sx, sy, sw, sh, 0, 0, _sc.width, _sc.height);
+  else    g.drawImage(v, 0, 0, _sc.width, _sc.height);
   const d = g.getImageData(0,0,_sc.width,_sc.height).data;
   const L = new Uint32Array(64);
   let blown = 0, crushed = 0, n = 0;
@@ -3235,9 +3250,14 @@ async function scoutCapture(){
   if(!v || !v.videoWidth) return;
   const btn = $('#scoutShot');
   if(btn){ if(btn.dataset.busy) return; btn.dataset.busy = '1'; btn.classList.add('busy'); }
+  // capture exactly what filled the window, not the parts cropped away
+  const winAR = base.width / base.height;
+  let sw = v.videoWidth, sh = sw/winAR;
+  if(sh > v.videoHeight){ sh = v.videoHeight; sw = sh*winAR; }
+  const sx = (v.videoWidth - sw)/2, sy = (v.videoHeight - sh)/2;
   const c = document.createElement('canvas');
-  c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext('2d').drawImage(v, 0, 0);
+  c.width = Math.round(sw); c.height = Math.round(sh);
+  c.getContext('2d').drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
   const blob = await new Promise(r=>c.toBlob(r,'image/jpeg',0.94));
   const meter = scoutMeter();
   if(blob){
