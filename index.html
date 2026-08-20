@@ -141,100 +141,58 @@ main{flex:1;display:flex;min-height:0}
 }
 #busy.on{display:block}
 
-/* ---------- Scout: a viewing window, then readouts, then the shutter ---------- */
-#scout{
-  position:fixed;left:0;right:0;top:0;
-  height:100vh;height:100dvh;z-index:60;background:var(--ink);
-  display:flex;flex-direction:column;
-}
-#scout[hidden]{display:none}
+/* ---------- Scout lives INSIDE the normal viewing window ---------- */
+/* The picture area, the overlays and the readings panel are the ones the
+   app already has, so a grid that lines up on a photo lines up here too. */
+#app.scouting #tabs, #app.scouting .card, #app.scouting #cullbar{display:none}
+#app.scouting .chip[data-ov="focusmap"],
+#app.scouting .chip[data-ov="peaking"],
+#app.scouting .chip[data-ov="clip"],
+#app.scouting .chip[data-ov="lens"],
+#app.scouting #chipAll{display:none}
 
-/* the window is exactly the shape of what the camera sees — no black bars,
-   and the picture is never hidden behind a readout */
-#scoutStage{
-  position:relative;flex:0 0 auto;width:100%;background:#000;
-  aspect-ratio:3/4;max-height:64vh;max-height:64dvh;margin:0 auto;
+#scoutCard{display:none;padding:14px 16px}
+#app.scouting #scoutCard{display:block}
+#scoutCard h3{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.2em;
+  font-size:13px;margin:0 0 10px;font-weight:600;display:flex;align-items:baseline;gap:8px;
 }
-#scoutVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-#scoutOv{position:absolute;inset:0;pointer-events:none}
+#scoutCard h3 em{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--dimmer);text-transform:none}
 
-#scoutTop{
-  position:absolute;z-index:4;left:0;right:0;
-  top:max(8px,env(safe-area-inset-top));
-  display:flex;align-items:center;gap:6px;padding:0 10px;
-}
-#scoutTop .grow{flex:1}
-.sbtn{
-  font-family:var(--display);text-transform:uppercase;letter-spacing:.09em;
-  font-size:12.5px;padding:8px 12px;border-radius:3px;white-space:nowrap;
-  background:rgba(10,12,15,.66);backdrop-filter:blur(8px);
-  border:1px solid var(--peak);color:var(--peak);font-weight:600;
-}
-.sbtn.on{background:var(--peak);color:var(--on-peak);border-color:var(--peak)}
-.sbtn:active{transform:scale(.97)}
+.hist-wrap{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:9px 10px 6px}
+#scoutHist{width:100%;height:76px;display:block}
+.hist-scale{display:flex;justify-content:space-between;margin-top:5px;
+  font-family:var(--mono);font-size:9.5px;color:var(--dimmer);letter-spacing:.04em}
+.hist-reads{display:flex;gap:18px;margin-top:11px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.hist-reads b{color:var(--text);font-weight:600}
+.hist-reads .hot b{color:var(--zebra)}
+.hist-reads .cold b{color:#B98CF0}
 
-#scoutNote{
-  position:absolute;z-index:5;left:10px;right:10px;margin:0;
-  top:calc(max(8px,env(safe-area-inset-top)) + 48px);
-  font-size:11.5px;line-height:1.4;color:var(--dim);
-  background:rgba(10,11,13,.88);border-radius:3px;padding:8px 38px 8px 11px;
-}
-#scoutNote[hidden]{display:none}
-#scoutNote .x{
-  position:absolute;top:0;right:0;font-family:var(--mono);font-size:17px;
-  color:var(--text);padding:8px 12px;line-height:1;
-}
-
-/* the readouts live BELOW the picture, where a camera app puts them */
-#scoutInfo{
-  flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:9px;padding:10px 12px;
-}
-#scoutHist{width:min(100%,320px);height:52px;display:block;
-  background:var(--panel2);border:1px solid var(--line);border-radius:3px}
-#scoutReads{
-  display:flex;gap:16px;font-family:var(--mono);font-size:11.5px;color:var(--dim);
-}
-#scoutReads .hot{color:var(--zebra)}
-#scoutReads .cold{color:#B98CF0}
-#scoutZoom{display:flex;gap:6px}
+#scoutZoom{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
 #scoutZoom[hidden]{display:none}
 #scoutZoom button{
-  font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;
-  border:1px solid var(--line);background:var(--panel2);color:var(--dim);min-width:46px;
+  font-family:var(--mono);font-size:12px;padding:6px 13px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--dim);min-width:48px;
 }
 #scoutZoom button.on{background:var(--peak);color:var(--on-peak);border-color:var(--peak);font-weight:700}
 
-#scoutFoot{
-  flex:0 0 auto;display:flex;justify-content:center;align-items:center;
-  padding:10px 0;padding-bottom:max(12px,env(safe-area-inset-bottom));
+/* the shutter sits under the readings, at the foot of the screen */
+#shutterbar{
+  display:none;flex:0 0 auto;align-items:center;gap:10px;
+  padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom));
+  border-top:1px solid var(--line);background:var(--panel);
 }
+#app.scouting #shutterbar{display:flex}
+#shutterbar .grow{flex:1}
 #scoutShot{
-  width:72px;height:72px;border-radius:50%;padding:0;
+  width:60px;height:60px;border-radius:50%;padding:0;flex:0 0 auto;
   border:3px solid rgba(255,255,255,.95);background:transparent;
   display:grid;place-items:center;
 }
-#scoutShot span{
-  width:56px;height:56px;border-radius:50%;background:#fff;display:block;
-  transition:transform .08s ease;
-}
+#scoutShot span{width:46px;height:46px;border-radius:50%;background:#fff;display:block;transition:transform .08s ease}
 #scoutShot:active span{transform:scale(.86)}
 #scoutShot.busy span{background:var(--peak)}
-
-@media (max-height:560px) and (orientation:landscape){
-  #scout{flex-direction:row;align-items:stretch}
-  #scoutStage{flex:1 1 auto;width:auto;height:100%;max-height:none;aspect-ratio:auto}
-  #scoutVid{object-fit:contain}
-  #scoutInfo{flex:0 0 auto;width:190px;justify-content:center;gap:8px;padding:8px}
-  #scoutHist{width:100%;height:44px}
-  #scoutFoot{flex:0 0 auto;padding:0 12px;padding-right:max(12px,env(safe-area-inset-right))}
-  #scoutTop{top:max(6px,env(safe-area-inset-top));padding:0 8px;gap:5px}
-  .sbtn{font-size:11.5px;padding:6px 10px}
-  #scoutShot{width:60px;height:60px}
-  #scoutShot span{width:46px;height:46px}
-  #scoutNote{left:10px;right:auto;max-width:min(56%,430px);
-    top:calc(max(6px,env(safe-area-inset-top)) + 42px);font-size:10.5px;padding:6px 34px 6px 9px}
-}
+#app.scouting #strip{display:none}
 
 #unzoom{
   position:absolute;z-index:7;right:12px;bottom:12px;
@@ -599,32 +557,7 @@ canvas.strip{height:38px}
       <p class="fine">JPEGs. Nothing is uploaded — every measurement happens on this device.</p>
     </div>
 
-    <div id="scout" hidden>
-      <div id="scoutStage">
-        <video id="scoutVid" playsinline muted></video>
-        <canvas id="scoutOv"></canvas>
-        <div id="scoutTop">
-          <button class="sbtn" id="scoutClose">&#8592; Exit</button>
-          <span class="grow"></span>
-          <button class="sbtn" id="scoutGrid">Grid</button>
-          <button class="sbtn" id="scoutZeb">Zebras</button>
-        </div>
-        <p id="scoutNote">Compose, watch the light, then take the shot. Loupe reads the exposure and gives you settings for your camera.<button class="x" id="scoutNoteX" title="Hide">&#10005;</button></p>
-      </div>
-
-      <div id="scoutInfo">
-        <canvas id="scoutHist"></canvas>
-        <div id="scoutReads">
-          <span id="scoutBlown">blown 0.0%</span>
-          <span id="scoutBlack">black 0.0%</span>
-        </div>
-        <div id="scoutZoom" hidden></div>
-      </div>
-
-      <div id="scoutFoot">
-        <button id="scoutShot" title="Take a photo and check it" aria-label="Take a photo"><span></span></button>
-      </div>
-    </div>
+    <video id="scoutVid" playsinline muted class="offscreen"></video>
     <button id="unzoom" hidden title="Back to fit">⤢ <span id="zoomlbl">1.0×</span></button>
     <div id="busy">Reading…</div>
   </div>
@@ -639,6 +572,21 @@ canvas.strip{height:38px}
       <button data-tab="frame">Frame</button>
       <button data-tab="lens">Lens</button>
     </nav>
+
+    <div id="scoutCard">
+      <h3>Live <em>framing &amp; light</em></h3>
+      <div class="hist-wrap">
+        <canvas id="scoutHist"></canvas>
+        <div class="hist-scale"><span>BLACK</span><span>MID</span><span>WHITE</span></div>
+      </div>
+      <div class="hist-reads">
+        <span id="scoutBlown">blown <b>0.0%</b></span>
+        <span id="scoutBlack">black <b>0.0%</b></span>
+        <span id="scoutEv"></span>
+      </div>
+      <div id="scoutZoom" hidden></div>
+      <p class="note">Framing and light only — a preview stream is too coarse to judge sharpness. Take the shot and Loupe reads the exposure properly.</p>
+    </div>
 
     <div class="card show" data-tab="verdict">
       <h3>Verdict <em>how close you are</em></h3>
@@ -693,6 +641,12 @@ canvas.strip{height:38px}
   <div id="rvGrid"></div>
 </div>
 
+<div id="shutterbar">
+  <button class="btn" id="scoutClose">Exit scout</button>
+  <span class="grow"></span>
+  <button id="scoutShot" title="Take a photo and check it" aria-label="Take a photo"><span></span></button>
+  <span class="grow"></span>
+</div>
 <div id="cullbar" hidden></div>
 <div id="strip"></div>
 </div>
@@ -2528,13 +2482,19 @@ function setOverlay(k){
     for(const other of [...State.overlays]) if(OV_GROUP[other]===g) State.overlays.delete(other);
     State.overlays.add(k);
   }
-  syncChips(); drawOverlays(); renderLegend();
+  syncChips();
+  if(!Scout.on){ drawOverlays(); renderLegend(); }
 }
 
 const CHIP_TAB = {lens:'lens', thirds:'frame', phi:'frame', spiral:'frame', diag:'frame', tri:'frame',
                  focusmap:'focus', peaking:'focus', clip:'exposure'};
 $('#chips').addEventListener('click', ev=>{
   const b = ev.target.closest('.chip'); if(!b) return;
+  if(Scout.on){                       // live view repaints itself each frame
+    if(b.id==='cyc'){ State.orient=(State.orient+1)%4; return; }
+    setOverlay(b.dataset.ov);
+    return;
+  }
   if(b.id==='cyc'){ State.orient=(State.orient+1)%4; drawOverlays(); return; }
   if(b.id==='chipAll'){ State.lensAll=!State.lensAll; b.classList.toggle('on',State.lensAll); paint(); drawOverlays(); return; }
   const k = b.dataset.ov;
@@ -3069,16 +3029,12 @@ function resetView(){ View.s=1; View.x=0; View.y=0; applyView(); }
    no stars appear here. The shutter captures a real frame and the full
    analysis runs on that.
 ------------------------------------------------------------ */
-const SCOUT_GRIDS = [null,'thirds','phi','spiral','diag'];
-const GRID_NAMES = {null:'Grid', thirds:'Thirds', phi:'Golden', spiral:'Spiral', diag:'Diagonals'};
-const Scout = {on:false, stream:null, raf:0, zebra:false, hist:null,
-               grid:0, u:1};
+const Scout = {on:false, stream:null, raf:0, hist:null};
 
 async function scoutStart(){
   try{
     Scout.stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:'environment'},
-              width:{ideal:1920}, height:{ideal:1080} },
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} },
       audio:false
     });
   }catch(err){
@@ -3089,19 +3045,14 @@ async function scoutStart(){
   const v = $('#scoutVid');
   v.srcObject = Scout.stream;
   await v.play().catch(()=>{});
-  $('#scout').hidden = false;
-  // the viewing window takes the camera's own shape, so nothing is letterboxed
-  const shape = ()=>{
-    if(v.videoWidth){
-      const st = $('#scoutStage');
-      if(st) st.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
-    }
-  };
-  v.addEventListener('loadedmetadata', shape, {once:true});
-  shape();
-  scoutZoomSetup();
-  document.getElementById('app').classList.remove('noshot');
   Scout.on = true;
+  document.getElementById('app').classList.add('scouting');
+  document.getElementById('app').classList.remove('noshot');
+  $('#drop').classList.add('hide');
+  $('#frame').hidden = false;
+  $('#chips').hidden = false;
+  $('#btnScout').textContent = 'Exit scout';
+  scoutZoomSetup();
   scoutLoop();
 }
 
@@ -3110,36 +3061,55 @@ function scoutStop(){
   cancelAnimationFrame(Scout.raf);
   if(Scout.stream){ Scout.stream.getTracks().forEach(t=>t.stop()); Scout.stream = null; }
   const v = $('#scoutVid'); if(v) v.srcObject = null;
-  $('#scout').hidden = true;
-  setEmptyState();
+  document.getElementById('app').classList.remove('scouting');
+  $('#btnScout').textContent = 'Scout';
+  if(State.idx >= 0 && State.shots[State.idx]){ fitCanvas(); paint(); }
+  else { $('#frame').hidden = true; $('#drop').classList.remove('hide'); setEmptyState(); }
 }
 
+/* The camera is drawn into the SAME canvases a photograph uses, at the same
+   size, so every existing overlay lines up without a line of new maths. */
 function scoutLoop(){
   if(!Scout.on) return;
-  const v = $('#scoutVid'), c = $('#scoutOv');
+  const v = $('#scoutVid');
   if(v && v.videoWidth){
-    const r = v.getBoundingClientRect();
+    const st = $('#stage').getBoundingClientRect();
+    const pad = 22;
+    const k = Math.min((st.width-pad)/v.videoWidth, (st.height-pad)/v.videoHeight);
+    const w = Math.max(40, Math.round(v.videoWidth*k)), h = Math.max(40, Math.round(v.videoHeight*k));
     const dpr = Math.min(2, window.devicePixelRatio||1);
-    if(c.width !== Math.round(r.width*dpr)){
-      c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr);
+    for(const c of [base, over]){
+      if(c.width !== Math.round(w*dpr) || c.height !== Math.round(h*dpr)){
+        c.width = Math.round(w*dpr); c.height = Math.round(h*dpr);
+        c.style.width = w+'px'; c.style.height = h+'px';
+      }
     }
-    Scout.u = dpr;                                 // one CSS pixel in canvas units
-    const cx = c.getContext('2d');
-    cx.clearRect(0,0,c.width,c.height);
-
-    // the picture is shown whole (object-fit:contain), so find where it sits
-    const va = v.videoWidth/v.videoHeight, ba = c.width/c.height;
-    let iw, ih;
-    if(va > ba){ iw = c.width; ih = c.width/va; } else { ih = c.height; iw = c.height*va; }
-    const ix = (c.width-iw)/2, iy = (c.height-ih)/2;
-
-
+    base.getContext('2d').drawImage(v, 0, 0, base.width, base.height);
     scoutSample(v);
-    if(Scout.zebra) scoutZebra(cx, ix, iy, iw, ih);
-    scoutGridDraw(cx, ix, iy, iw, ih);
+    scoutDrawOverlays();
     scoutHistPanel();
   }
   Scout.raf = requestAnimationFrame(scoutLoop);
+}
+
+function scoutDrawOverlays(){
+  const cx = over.getContext('2d'), W = over.width, H = over.height;
+  cx.clearRect(0,0,W,H);
+  const line = Math.max(1, Math.round(W/900));
+  const O = State.overlays;
+  cx.lineWidth = line; cx.setLineDash([]);
+  if(O.has('thirds')){
+    strokeGrid(cx,W,H,[1/3,2/3],[1/3,2/3],GRID,line);
+    dots(cx,W,H,[1/3,2/3],[1/3,2/3],GRID_DOT);
+  }
+  if(O.has('phi')){
+    const a=1/(1+PHI), b=PHI/(1+PHI);
+    strokeGrid(cx,W,H,[a,b],[a,b],GRID,line);
+    dots(cx,W,H,[a,b],[a,b],GRID_DOT);
+  }
+  if(O.has('spiral')) drawSpiral(cx,W,H,State.orient,line);
+  if(O.has('diag'))   drawDiagonals(cx,W,H,line);
+  if(O.has('tri'))    drawTriangles(cx,W,H,State.orient,line);
 }
 
 // one small read per frame — enough for a histogram, cheap enough for 60fps
@@ -3160,37 +3130,67 @@ function scoutSample(v){
   Scout.hist = {L, blown:100*blown/n, crushed:100*crushed/n};
 }
 
-/* Below the picture, never over it — the readout can't hide the thing you
-   are trying to read it about. */
+/* A histogram worth looking at: a filled curve rather than a picket fence,
+   zone rules behind it, and the clipped ends called out in their colours. */
 function scoutHistPanel(){
   const h = Scout.hist; if(!h) return;
   const c = $('#scoutHist'); if(!c) return;
   const r = c.getBoundingClientRect();
+  if(!r.width) return;
   const dpr = Math.min(2, window.devicePixelRatio||1);
-  if(c.width !== Math.round(r.width*dpr)){
+  if(c.width !== Math.round(r.width*dpr) || c.height !== Math.round(r.height*dpr)){
     c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr);
   }
   const cx = c.getContext('2d'), W = c.width, H = c.height;
   cx.clearRect(0,0,W,H);
-  cx.strokeStyle = 'rgba(255,255,255,.055)'; cx.lineWidth = 1;
-  for(let i=1;i<5;i++){ cx.beginPath(); cx.moveTo(W*i/5,0); cx.lineTo(W*i/5,H); cx.stroke(); }
-  let mx = 1; for(let i=1;i<63;i++) mx = Math.max(mx, h.L[i]);
-  cx.fillStyle = 'rgba(231,232,235,.8)';
-  for(let i=0;i<64;i++){
-    const v = Math.pow(h.L[i]/mx, 0.55) * H * 0.94;
-    cx.fillRect(i*W/64, H-v, W/64 - 0.5*dpr, v);
-  }
-  if(h.blown > 0.4){ cx.fillStyle = '#FFC24B'; cx.fillRect(W-3*dpr, 0, 3*dpr, H); }
-  if(h.crushed > 2){ cx.fillStyle = '#B98CF0'; cx.fillRect(0, 0, 3*dpr, H); }
 
-  const b = $('#scoutBlown'), k = $('#scoutBlack');
-  if(b){ b.textContent = `blown ${h.blown.toFixed(1)}%`; b.className = h.blown > 0.4 ? 'hot' : ''; }
-  if(k){ k.textContent = `black ${h.crushed.toFixed(1)}%`; k.className = h.crushed > 2 ? 'cold' : ''; }
+  cx.strokeStyle = 'rgba(255,255,255,.05)'; cx.lineWidth = dpr;
+  for(let i=1;i<5;i++){ cx.beginPath(); cx.moveTo(W*i/5,0); cx.lineTo(W*i/5,H); cx.stroke(); }
+
+  let mx = 1; for(let i=1;i<63;i++) mx = Math.max(mx, h.L[i]);
+  const pt = i => [ W*i/63, H - Math.pow(h.L[i]/mx,0.55)*H*0.92 ];
+
+  cx.beginPath(); cx.moveTo(0,H);
+  for(let i=0;i<64;i++){                       // smoothed through the midpoints
+    const [x,y] = pt(i);
+    if(i===0){ cx.lineTo(x,y); continue; }
+    const [px,py] = pt(i-1);
+    cx.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2);
+  }
+  cx.lineTo(W,H); cx.closePath();
+  const g = cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'rgba(142,202,230,.55)');
+  g.addColorStop(1,'rgba(142,202,230,.08)');
+  cx.fillStyle = g; cx.fill();
+
+  cx.beginPath();
+  for(let i=0;i<64;i++){
+    const [x,y] = pt(i);
+    if(i===0){ cx.moveTo(x,y); continue; }
+    const [px,py] = pt(i-1);
+    cx.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2);
+  }
+  cx.strokeStyle = 'rgba(196,226,240,.95)'; cx.lineWidth = 1.6*dpr; cx.stroke();
+
+  if(h.blown > 0.4){
+    const gg = cx.createLinearGradient(W-14*dpr,0,W,0);
+    gg.addColorStop(0,'rgba(255,194,75,0)'); gg.addColorStop(1,'rgba(255,194,75,.75)');
+    cx.fillStyle = gg; cx.fillRect(W-14*dpr,0,14*dpr,H);
+  }
+  if(h.crushed > 2){
+    const gg = cx.createLinearGradient(0,0,14*dpr,0);
+    gg.addColorStop(0,'rgba(185,140,240,.75)'); gg.addColorStop(1,'rgba(185,140,240,0)');
+    cx.fillStyle = gg; cx.fillRect(0,0,14*dpr,H);
+  }
+
+  const b = $('#scoutBlown'), k = $('#scoutBlack'), e = $('#scoutEv');
+  if(b){ b.innerHTML = `blown <b>${h.blown.toFixed(1)}%</b>`; b.className = h.blown > 0.4 ? 'hot' : ''; }
+  if(k){ k.innerHTML = `black <b>${h.crushed.toFixed(1)}%</b>`; k.className = h.crushed > 2 ? 'cold' : ''; }
+  if(e){ const m = scoutMeter(); e.innerHTML = m ? `EV <b>${m.ev.toFixed(1)}</b>` : ''; }
 }
 
-/* Zoom, using the camera's own optical/hardware zoom when the browser
-   exposes it. If it doesn't, the control is hidden rather than faked —
-   a digital zoom here would only throw away pixels. */
+/* Zoom, using the camera's own hardware zoom where the browser exposes it.
+   If it doesn't, the control is hidden rather than faked. */
 function scoutZoomSetup(){
   const box = $('#scoutZoom'); if(!box) return;
   box.innerHTML = ''; box.hidden = true;
@@ -3201,82 +3201,35 @@ function scoutZoomSetup(){
     if(!caps.zoom || caps.zoom.max <= caps.zoom.min) return;
     const {min, max} = caps.zoom;
     const now = (t.getSettings().zoom) || min;
-    const stops = [min, min + (max-min)*0.25, min + (max-min)*0.6, max]
-      .filter((v,i,a)=>a.indexOf(v)===i);
-    stops.forEach((z,i)=>{
-      const btn = document.createElement('button');
-      btn.textContent = i === 0 ? '1×' : (z/min).toFixed(z/min < 10 ? 1 : 0) + '×';
-      btn.classList.toggle('on', Math.abs(z-now) < 1e-6);
-      btn.onclick = async ()=>{
-        try{
-          await t.applyConstraints({advanced:[{zoom:z}]});
-          [...box.children].forEach(c=>c.classList.remove('on'));
-          btn.classList.add('on');
-        }catch(e){}
-      };
-      box.appendChild(btn);
-    });
+    [min, min+(max-min)*0.25, min+(max-min)*0.6, max]
+      .filter((v,i,arr)=>arr.indexOf(v)===i)
+      .forEach((z,i)=>{
+        const btn = document.createElement('button');
+        btn.textContent = i===0 ? '1×' : (z/min).toFixed(z/min<10?1:0)+'×';
+        btn.classList.toggle('on', Math.abs(z-now) < 1e-6);
+        btn.onclick = async ()=>{
+          try{
+            await t.applyConstraints({advanced:[{zoom:z}]});
+            [...box.children].forEach(c=>c.classList.remove('on'));
+            btn.classList.add('on');
+          }catch(e){}
+        };
+        box.appendChild(btn);
+      });
     box.hidden = false;
   }catch(e){}
 }
 
-function scoutZebra(cx, ix, iy, iw, ih){
-  const h = Scout.hist; if(!h || h.blown < 0.2) return;
-  const u = Scout.u || 1;
-  cx.save();
-  cx.strokeStyle = 'rgba(255,194,75,.5)'; cx.lineWidth = 2*u;
-  cx.beginPath();
-  for(let k=-ih; k<iw; k+=16*u){ cx.moveTo(ix+k, iy+ih); cx.lineTo(ix+k+ih, iy); }
-  cx.stroke(); cx.restore();
-}
-
-/* Composition guides on the live view — the point of scouting is deciding
-   where to stand, and a grid is what that decision is made against. */
-function scoutGridDraw(cx, ix, iy, iw, ih){
-  const k = SCOUT_GRIDS[Scout.grid]; if(!k) return;
-  const u = Scout.u || 1;
-  const lw = 1.3*u;                                // a hairline, in real pixels
-  cx.save(); cx.translate(ix, iy);
-  cx.strokeStyle = GRID; cx.lineWidth = lw; cx.beginPath();
-  if(k === 'thirds' || k === 'phi'){
-    const a = k==='thirds' ? 1/3 : 1/(1+PHI), b = 1-a;
-    [a,b].forEach(v=>{ cx.moveTo(v*iw,0); cx.lineTo(v*iw,ih); cx.moveTo(0,v*ih); cx.lineTo(iw,v*ih); });
-    cx.stroke();
-    cx.fillStyle = GRID_DOT;
-    const r = 3*u;
-    [a,b].forEach(v=>[a,b].forEach(u=>{ cx.beginPath(); cx.arc(v*iw,u*ih,r,0,Math.PI*2); cx.fill(); }));
-  } else if(k === 'diag'){
-    const d = Math.max(iw,ih)*1.5;
-    cx.moveTo(0,0); cx.lineTo(d,d); cx.moveTo(iw,0); cx.lineTo(iw-d,d);
-    cx.moveTo(0,ih); cx.lineTo(d,ih-d); cx.moveTo(iw,ih); cx.lineTo(iw-d,ih-d);
-    cx.stroke();
-  } else if(k === 'spiral'){
-    // fit the guide to the frame you will actually shoot, centred, rather
-    // than stretching a phi rectangle across a tall phone screen
-    let gw = iw, gh = iw/State.aspect;
-    if(gh > ih){ gh = ih; gw = ih*State.aspect; }
-    const gx = (iw-gw)/2, gy = (ih-gh)/2;
-    cx.save();
-    cx.strokeStyle = 'rgba(255,194,75,.4)'; cx.lineWidth = lw;
-    cx.strokeRect(gx, gy, gw, gh);
-    cx.translate(gx, gy);
-    const CW = PHI, CH = 1;
-    cx.save(); cx.scale(gw/CW, gh/CH);
-    cx.beginPath();
-    let x=0,y=0,w=CW,h=CH,dir=0;
-    for(let i=0;i<11 && w>0.004 && h>0.004;i++){
-      const sq=Math.min(w,h);
-      if(dir===0){ cx.arc(x+sq,y+sq,sq,Math.PI,Math.PI*1.5); x+=sq; w-=sq; }
-      else if(dir===1){ cx.arc(x+w-sq,y+sq,sq,-Math.PI/2,0); y+=sq; h-=sq; }
-      else if(dir===2){ cx.arc(x+w-sq,y+h-sq,sq,0,Math.PI/2); w-=sq; }
-      else { cx.arc(x+sq,y+h-sq,sq,Math.PI/2,Math.PI); h-=sq; }
-      dir=(dir+1)%4;
-    }
-    cx.restore();
-    cx.strokeStyle = GRID; cx.lineWidth = lw*1.5; cx.stroke();
-    cx.restore();
-  }
-  cx.restore();
+function scoutMeter(){
+  try{
+    const t = Scout.stream && Scout.stream.getVideoTracks()[0];
+    if(!t || !t.getSettings) return null;
+    const st = t.getSettings();
+    if(!(st.exposureTime > 0 && st.iso > 0)) return null;
+    const secs = st.exposureTime / 10000;      // spec unit is 100 microseconds
+    const N = State.phoneF;
+    return {ev: Math.log2((N*N)/secs) - Math.log2(st.iso/100), assumedF: N};
+  }catch(e){ return null; }
 }
 
 async function scoutCapture(){
@@ -3288,24 +3241,17 @@ async function scoutCapture(){
   c.width = v.videoWidth; c.height = v.videoHeight;
   c.getContext('2d').drawImage(v, 0, 0);
   const blob = await new Promise(r=>c.toBlob(r,'image/jpeg',0.94));
-  if(!blob) return;
-  const file = new File([blob], `scout-${Date.now()}.jpg`, {type:'image/jpeg'});
   const meter = scoutMeter();
-  const grid = SCOUT_GRIDS[Scout.grid];
-  scoutStop();
-  await load([file]);
-
-  const shot = State.shots[State.idx];
-  if(shot){
-    // a captured frame has no EXIF, so hand it the meter reading we took live
-    shot.scoutEV = meter;
-    State.eqSource = 'scout';
-    // keep whatever guide he was composing with, and NEVER draw a simulated
-    // lens frame on a scout shot — the answer belongs in words, not a box
-    State.overlays.delete('lens');
-    if(grid && !State.overlays.has(grid)) setOverlay(grid);
-    syncChips();
-    paint(); drawOverlays(); showTab('verdict');
+  if(blob){
+    const file = new File([blob], `scout-${Date.now()}.jpg`, {type:'image/jpeg'});
+    scoutStop();
+    await load([file]);
+    const shot = State.shots[State.idx];
+    if(shot){
+      shot.scoutEV = meter;
+      State.eqSource = 'scout';
+      paint(); drawOverlays(); showTab('verdict');
+    }
   }
   if(btn){ btn.classList.remove('busy'); delete btn.dataset.busy; }
 }
@@ -3315,17 +3261,6 @@ async function scoutCapture(){
   if(b && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) b.hidden = false;
   if(b) b.onclick = ()=> Scout.on ? scoutStop() : scoutStart();
   const c = $('#scoutClose'); if(c) c.onclick = scoutStop;
-  const z = $('#scoutZeb');   if(z) z.onclick = ()=>{ Scout.zebra = !Scout.zebra; z.classList.toggle('on', Scout.zebra); };
-  const g = $('#scoutGrid');
-  if(g) g.onclick = ()=>{
-    Scout.grid = (Scout.grid+1) % SCOUT_GRIDS.length;
-    const k = SCOUT_GRIDS[Scout.grid];
-    g.textContent = k ? GRID_NAMES[k] : 'Grid';
-    g.classList.toggle('on', !!k);
-  };
-  const nx = $('#scoutNoteX');
-  if(nx) nx.onclick = ()=>{ $('#scoutNote').hidden = true; mark('loupe.scoutnote'); };
-  if(seen('loupe.scoutnote')) { const n0 = $('#scoutNote'); if(n0) n0.hidden = true; }
   const sh = $('#scoutShot'); if(sh) sh.onclick = scoutCapture;
 })();
 
