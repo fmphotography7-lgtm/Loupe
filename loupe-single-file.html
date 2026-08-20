@@ -406,6 +406,63 @@ canvas.strip{height:38px}
   #chips{top:8px;left:8px;right:8px}
   .chip{font-size:11px;padding:4px 8px}
 }
+/* ------------------------------------------------------------
+   A PHONE ON ITS SIDE is a short WIDE screen, not a tall one.
+   Stacking picture-over-readings leaves a sliver of each, so go back
+   to picture-beside-readings and shrink every piece of chrome.
+------------------------------------------------------------ */
+@media (max-height:560px) and (orientation:landscape){
+  main{flex-direction:row}
+  #stagewrap{flex:1 1 auto;min-height:0;min-width:0}
+  #stage{flex:1 1 auto;height:auto;min-height:0}
+  #app.noshot #stage{flex:1 1 auto;height:auto}
+  #read{
+    width:min(46%,300px);flex:0 0 min(46%,300px);
+    border-left:1px solid var(--line);border-top:none;
+  }
+  header{padding:5px 10px;padding-top:max(5px,env(safe-area-inset-top));gap:9px}
+  .wordmark{font-size:16px}
+  .logo{width:21px;height:21px}
+  .btn{padding:5px 10px;font-size:12px}
+  #tabs button{padding:8px 2px;font-size:10.5px;letter-spacing:.03em}
+  #chips{padding:5px 8px;gap:4px}
+  .chip{font-size:10.5px;padding:3px 7px}
+  .card{padding:12px 14px}
+  #strip{padding:5px 8px}
+  #strip img{height:36px}
+  #cullbar{padding:5px 9px}
+  #legend{padding:9px 12px}
+  #legend p{font-size:11px}
+  #legend p + p{margin-top:4px}
+  .ramp{height:7px;margin:6px 0 4px}
+  #drop{padding:14px 16px;gap:6px}
+  #drop h2{font-size:18px}
+  #drop .pitch{font-size:12.5px;max-width:56ch}
+  .logo.big{width:34px;height:34px}
+  .what li{padding:4px 0;font-size:11.5px}
+  .what{max-width:560px}
+  #colophon .mark{padding:10px 14px}
+  .mark-pic{width:58px;height:39px}
+}
+
+/* Scout in landscape: the controls float at the right edge, over the
+   picture, so none of the little vertical space is spent on a bar. */
+@media (max-height:560px) and (orientation:landscape){
+  #scoutBar{
+    position:absolute;z-index:4;right:0;top:0;bottom:0;left:auto;
+    flex-direction:column;justify-content:center;align-items:stretch;
+    width:auto;padding:8px 10px;gap:7px;border-top:none;
+    background:linear-gradient(90deg,rgba(10,11,13,0),rgba(10,11,13,.9) 45%);
+    padding-right:max(10px,env(safe-area-inset-right));
+  }
+  #scoutBar .spacer{display:none}
+  #scoutBar .btn{font-size:11.5px;padding:7px 11px;white-space:nowrap}
+  #scoutNote{
+    left:10px;right:auto;bottom:8px;max-width:min(58%,430px);
+    font-size:10.5px;padding:5px 8px;line-height:1.35;
+  }
+}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -2888,7 +2945,7 @@ function resetView(){ View.s=1; View.x=0; View.y=0; applyView(); }
    analysis runs on that.
 ------------------------------------------------------------ */
 const Scout = {on:false, stream:null, raf:0, zebra:false, hist:null,
-               fill:true, effEq:null, kx:1};
+               fill:true, effEq:null, kx:1, barInset:14, measure:true};
 
 async function scoutStart(){
   try{
@@ -2906,6 +2963,7 @@ async function scoutStart(){
   v.srcObject = Scout.stream;
   await v.play().catch(()=>{});
   $('#scout').hidden = false;
+  Scout.measure = true;
   document.getElementById('app').classList.remove('noshot');
   Scout.on = true;
   scoutLoop();
@@ -2926,7 +2984,10 @@ function scoutLoop(){
   if(v && v.videoWidth){
     const r = v.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio||1);
-    if(c.width !== Math.round(r.width*dpr)){ c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr); }
+    if(c.width !== Math.round(r.width*dpr)){
+      c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr);
+      Scout.measure = true;                       // layout changed, remeasure the bar
+    }
     const cx = c.getContext('2d');
     cx.clearRect(0,0,c.width,c.height);
 
@@ -2948,6 +3009,17 @@ function scoutLoop(){
       viewAspect = va;
     }
     Scout.effEq = State.phoneEq / Scout.kx;
+    if(Scout.measure){
+      // how much room the floating control bar takes, measured once per layout
+      const bar = $('#scoutBar');
+      let px = 14;
+      if(bar && getComputedStyle(bar).position === 'absolute'){
+        const br = bar.getBoundingClientRect(), or = c.getBoundingClientRect();
+        if(or.width) px = br.width * (c.width/or.width) + 10;
+      }
+      Scout.barInset = px;
+      Scout.measure = false;
+    }
 
     scoutSample(v);
     if(Scout.zebra) scoutZebra(cx, ix, iy, iw, ih);
@@ -2977,7 +3049,8 @@ function scoutSample(v){
 
 function scoutHist(cx, W, H){
   const h = Scout.hist; if(!h) return;
-  const w = Math.min(W*0.42, 260*(W/900)+150), hh = 54, x = W-w-14, y = 14;
+  const inset = Scout.barInset || 14;
+  const w = Math.min(W*0.38, 260*(W/900)+140), hh = 48, x = W-w-inset, y = 12;
   cx.fillStyle = 'rgba(10,11,13,.8)';
   cx.fillRect(x-6, y-6, w+12, hh+30);
   let mx = 1; for(let i=1;i<63;i++) mx = Math.max(mx, h.L[i]);
@@ -3124,6 +3197,11 @@ if(/[?&]shared=/.test(location.search)) window.addEventListener('load', pickupSh
   const t = $('#rvThresh');
   if(t) t.onchange = ()=>{ State.thresh = parseFloat(t.value); renderReview(); };
 })();
+
+window.addEventListener('orientationchange', ()=>{
+  // the canvases size themselves from the layout, so remeasure after the turn
+  setTimeout(()=>{ fitCanvas(); drawOverlays(); }, 260);
+});
 
 let rt; window.addEventListener('resize', ()=>{clearTimeout(rt); rt=setTimeout(()=>{fitCanvas();
   const s=State.shots[State.idx]; if(s&&s.result){ plotHistogram($('#hist'),s.result.e); plotProfile($('#prof'),s.result.f); }},140);});
