@@ -298,6 +298,11 @@ canvas.strip{height:38px}
 .fitbar{flex:1;height:5px;background:#26282F;border-radius:3px;overflow:hidden}
 .fitbar i{display:block;height:100%;background:linear-gradient(90deg,#4A5A6B,var(--zebra));border-radius:3px}
 .fitpct{flex:0 0 34px;text-align:right;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.levelwarn{
+  margin:10px 0 0;padding:11px 13px;border-radius:3px;font-size:13px;line-height:1.5;
+  background:rgba(255,194,75,.1);border:1px solid rgba(255,194,75,.4);
+}
+.levelwarn b{color:var(--zebra)}
 .seg.lenses button{font-family:var(--display);font-size:14px;letter-spacing:.08em;padding:9px 13px;color:var(--text)}
 .seg.lenses button.on{background:var(--peak);border-color:var(--peak);color:var(--on-peak);font-weight:700}
 
@@ -1099,10 +1104,16 @@ function distToPts(px,py,pts,ar){
   }
   return {d:best, at};
 }
-const fitOf = d => Math.max(0, Math.min(1, 1 - d/0.13));
+/* A frame's diagonal is the unit. At the old 0.13 tolerance, 80% of ALL
+   possible subject positions scored 50%+ — the reading was meaningless.
+   At 0.05 that falls to about 7%, so a high fit is worth something. */
+const fitOf = d => Math.max(0, Math.min(1, 1 - d/0.05));
 
-function compositionFits(f, ar){
-  const px=f.focusX, py=f.focusY;
+function compositionFits(f, ar, at){
+  // If the photographer has marked a subject, that is the thing to measure.
+  // Otherwise fall back to the sharpest region, which is only a proxy.
+  const px = at ? at.x : f.focusX;
+  const py = at ? at.y : f.focusY;
   const a=1/(1+PHI), b=PHI/(1+PHI);
   const out=[];
 
@@ -1123,12 +1134,14 @@ function compositionFits(f, ar){
   out.push({key:'spiral', name:'Golden spiral', fit:fitOf(bestSp.d), at:bestSp.at, orient:bestSp.o,
     note:'For a frame that unwinds — the eye enters wide and settles at the small end.'});
 
-  // 45 degree lines from each corner, expressed in frame coordinates
-  const k=1/ar;
-  const segs45=[[0,0,1,k],[1,0,0,k],[0,1,1,1-k],[1,1,0,1-k]];
-  const d45=distToSegs(px,py,segs45,ar);
-  out.push({key:'diag', name:'Diagonal method', fit:fitOf(d45), at:null,
-    note:'Places the subject on a 45° line from a corner. Good when the frame already has movement in it.'});
+  // The anchors are where the 45° lines from the corners CROSS each other.
+  // Measuring distance to the lines themselves was the single worst fault
+  // here: a line passes near everything, so this system won 87% of frames.
+  const dpts = [[0.5/ar,0.5], [0.5,0.5*ar], [0.5,1-0.5*ar], [(ar-0.5)/ar,0.5]]
+    .filter(p=>p[1] >= 0 && p[1] <= 1);
+  const dg = dpts.length ? distToPts(px,py,dpts,ar) : {d:Infinity, at:null};
+  out.push({key:'diag', name:'Diagonal method', fit:fitOf(dg.d), at:dg.at,
+    note:'Sits where the 45° lines from the corners cross. Good when the frame already has movement in it.'});
 
   // The anchors of this system are NOT the diagonal itself — a diagonal sweeps
   // most of the frame and would match anything. They are the four points where
@@ -2122,7 +2135,9 @@ function paint(){
   const X_ = fixes(e, f, sub);
   const word = R.overall >= 4.5 ? 'Excellent' : R.overall >= 3.5 ? 'Strong' :
                R.overall >= 2.5 ? 'Usable' : R.overall >= 1.5 ? 'Fixable next time' : 'Worth another go';
-  const fitsV = compositionFits(f, arC);
+  const fitsV = compositionFits(f, arC, State.subject
+    ? {x: State.subject.x + State.subject.w/2, y: State.subject.y + State.subject.h/2}
+    : null);
 
   const scoutShot = State.eqSource === 'scout';
   let bringLine = '';
@@ -2151,7 +2166,11 @@ function paint(){
     </div>
     <div class="scoreline"><b>Exposure</b><span>${starsHTML(R.exposure)}<span class="num">${R.exposure.toFixed(1)}</span></span></div>
     <div class="scoreline"><b>Sharpness</b><span>${starsHTML(R.focus)}${R.focus!==null?`<span class="num">${R.focus.toFixed(1)}</span>`:''}</span></div>
-    <div class="scoreline"><b>Frame</b><span class="sdim">${fitsV[0].fit > 0.55 ? `built on the ${fitsV[0].name.toLowerCase()}` : 'its own structure'}</span></div>
+    <div class="scoreline"><b>Frame</b><span class="sdim">${
+      f.hasHorizon && Math.abs(f.tilt) >= 0.5 ? `<span style="color:var(--zebra)">horizon ${Math.abs(f.tilt).toFixed(1)}° off level</span>`
+      : fitsV[0].fit >= 0.75 ? `on the ${fitsV[0].name.toLowerCase()}`
+      : fitsV[0].fit >= 0.5 ? `near the ${fitsV[0].name.toLowerCase()}`
+      : 'no grid describes it'}</span></div>
 
     ${W_.length ? `<p class="subh">What you got right</p><ul class="lst good">${W_.map(t=>`<li>${t}</li>`).join('')}</ul>` : ''}
     ${X_.length ? `<p class="subh">Worth changing</p><ul class="lst todo">${X_.map(t=>`<li><b>${t.t}</b>${t.s}${t.field?`<span class="field"><em>In the field:</em> ${t.field}</span>`:''}</li>`).join('')}</ul>`
@@ -2298,15 +2317,27 @@ function paint(){
     wire('#segD','d', v=>State.dist=+v);
   }
 
-  const fits = compositionFits(f, arC);
+  const subjPt = State.subject
+    ? {x: State.subject.x + State.subject.w/2, y: State.subject.y + State.subject.h/2}
+    : null;
+  const fits = compositionFits(f, arC, subjPt);
   const top = fits[0];
   const hz = horizonNote(f);
   const OVMAP = {thirds:'thirds', phi:'phi', spiral:'spiral', diag:'diag', tri:'tri', centre:null};
 
+  const tilt = f.hasHorizon ? Math.abs(f.tilt) : null;
+  const levelBad = tilt !== null && tilt >= 0.5;
+  const lead = top.fit >= 0.75
+    ? `This frame sits squarely on the <b>${top.name.toLowerCase()}</b>. ${top.note}`
+    : top.fit >= 0.5
+      ? `This frame is close to the <b>${top.name.toLowerCase()}</b>, though not exactly on it. ${top.note}`
+      : `<b>This frame isn't built on any of these structures.</b> That is not a fault — most photographs aren't, and the strongest ones often deliberately aren't. It only means there is no grid here to tell you about.`;
+
   $('#cmpBody').innerHTML = `
-    <p style="margin:10px 0 0;font-size:13.5px">This frame sits closest to the
-      <b>${top.name.toLowerCase()}</b>${top.fit>0.75?'':', though not strongly'}.
-      ${top.note}</p>
+    ${levelBad ? `<div class="levelwarn"><b>Horizon is ${tilt.toFixed(1)}° off level.</b>
+      Rotate ${tilt.toFixed(1)}° ${f.tilt > 0 ? 'anticlockwise' : 'clockwise'} to straighten it — that costs about ${(tilt*1.8).toFixed(0)}% of the frame in the crop.</div>` : ''}
+    <p style="margin:10px 0 0;font-size:13.5px">${lead}</p>
+    <p class="note">Measured from ${State.subject ? '<b>the subject box you marked</b>' : 'the sharpest point in the frame'}${State.subject ? '' : ' — drag a box on the photograph to measure your actual subject instead'}.</p>
 
     <p class="subh">How it fits each one</p>
     ${fits.map(x=>`
@@ -2329,7 +2360,8 @@ function paint(){
       <div class="row"><span>crops available</span><span>${cropHint(natW,natH)}</span></div>
     </div>
 
-    <p class="note">These are percentages of FIT, not marks. A frame that matches nothing on this list is not a weak photograph — it may simply be built on something none of these grids describes. The measurement follows the sharpest point in the frame, which is usually, though not always, where a viewer looks first.</p>`;
+    <p class="note">Percentages of FIT, not marks. The scale is deliberately tight: put a subject at random and it only lands above 50% about one time in thirteen, so a high number here means the placement really is on the structure rather than merely near it.</p>
+    <p class="note">A frame that matches nothing is not a weak photograph. Plenty of the strongest ones are built on something none of these grids describes.</p>`;
 
   const st = $('#showTop');
   if(st) st.onclick = ()=>{
